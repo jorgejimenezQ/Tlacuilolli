@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="./assets/logo/logo_tlacuilolli.png" width="200" alt="Tlacuilolli Logo"/>
+</p>
+
 # Tlacuilolli Engine
+
+<!-- <h1 align="center">Tlacuilolli Engine</h1> -->
 
 **Tlacuilolli** is a minimalist, CPU-rendered 2D game engine written in C using SDL2. It is built for rapid experimentation, visualization, and simulation using geometric primitives, with a focus on simplicity, flexibility, and real-time control.
 
