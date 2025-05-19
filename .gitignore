@@ -1,0 +1,53 @@
+# Compiled object files
+*.o
+
+# Compiled binaries
+/renderer
+*.out
+*.exe
+
+# SDL cache or temp files
+*.log
+*.dSYM/
+
+# Build artifacts
+build/
+*.a
+*.so
+*.dll
+
+# Temporary files
+*.swp
+*.bak
+*~
+
+# Editor/IDE specific
+.vscode/
+.idea/
+*.code-workspace
+
+# MacOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Project metadata
+pid.txt
+
+# Assets and output folders (if temporary or generated)
+assets/fonts/*.ttf
+*.ttf~
+
+# Ignore generated docs or build notes
+TODO.md~
+NOTES.md~
+
+# Ignore compiled binaries
+renderer
+renderer_sse2
+renderer_avx2
