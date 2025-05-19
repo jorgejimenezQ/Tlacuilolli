@@ -1,0 +1,3190 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: build/*
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+include/
+  canvas.h
+  engine.h
+  explosion_demo.h
+  input.h
+  physics_demo.h
+  text.h
+  triangle_demo.h
+  triangle_simd.h
+  triangle.h
+src/
+  canvas.c
+  engine.c
+  explosion_demo.c
+  hello_world_demo.c
+  hello_world_demo.h
+  input.c
+  main.c
+  physics_demo.c
+  text.c
+  triangle_demo.c
+  triangle_simd.c
+  triangle.c
+Makefile
+NOTES.md
+pid.txt
+README.md
+TODO.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="include/canvas.h">
+#ifndef CANVAS_H
+#define CANVAS_H
+
+#include <SDL2/SDL.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+// Simple RGB color
+typedef struct {
+    uint8_t r, g, b;
+} Color;
+
+// Canvas that wraps an SDL window/renderer/texture and two pixel buffers (double-buffering)
+typedef struct {
+    SDL_Window*   window;
+    SDL_Renderer* renderer;
+    SDL_Texture*  texture;
+    uint32_t*     pixels;     // Front buffer (currently uploaded to texture)
+    uint32_t*     backBuffer; // Back buffer (current drawing target)
+    int           width;
+    int           height;
+} Canvas;
+
+// Initialize SDL, create window & renderer & streaming texture, allocate pixels[]
+bool Canvas_Init(Canvas* canvas, int width, int height);
+
+// Free pixel buffer and SDL objects
+void Canvas_Destroy(Canvas* canvas);
+
+// Put a single pixel at center-origin coords (cx, cy) with an r8g8b8 color
+void Canvas_PutPixel(Canvas* canvas, int cx, int cy, Color color);
+
+// Upload backBuffer to texture, swap buffers, and render to the screen
+void Canvas_Update(Canvas* canvas);
+
+#endif // CANVAS_H
+</file>
+
+<file path="include/engine.h">
+#ifndef ENGINE_H
+#define ENGINE_H
+
+#include "canvas.h"
+#include "text.h"
+#include <stdbool.h>
+
+// Called once at startup
+void setup(void);
+
+// Called every frame with elapsed time (seconds)
+void update(float dt);
+
+// Starts the SDL2 loop: window title, size, and target FPS
+int runEngine(const char* title, int width, int height, int fps);
+
+// Get access to the canvas for drawing
+Canvas* getCanvas(void);
+
+typedef struct Layer {
+  const char* name;
+  void (*update)(float dt);
+  void (*render)(void);
+  bool enabled;
+} Layer;
+
+// Layer management
+void registerLayer(Layer* layer);
+void unregisterLayer(const char* name);
+void setLayerEnabled(const char* name, bool enabled);
+
+#endif // ENGINE_H
+</file>
+
+<file path="include/explosion_demo.h">
+#ifndef EXPLOSION_DEMO_H
+#define EXPLOSION_DEMO_H
+
+#include "canvas.h"
+
+// Maximum number of particles that can be active at once
+#define MAX_PARTICLES 1000
+
+// Default number of particles to emit per explosion
+#define PARTICLES_PER_EXPLOSION 150
+
+// Particle appearance and behavior parameters
+#define PARTICLE_MIN_SIZE 1.0f
+#define PARTICLE_MAX_SIZE 3.0f
+#define PARTICLE_MIN_SPEED 50.0f
+#define PARTICLE_MAX_SPEED 200.0f
+#define PARTICLE_MIN_LIFETIME 0.5f
+#define PARTICLE_MAX_LIFETIME 2.0f
+
+// Particle structure for explosion effect
+typedef struct {
+    float cx, cy;         // Position in canvas coordinates
+    float dx, dy;         // Velocity components
+    float size;           // Size of the triangle
+    Color color;          // RGB color
+    float angle;          // Current rotation angle
+    float rotation_speed; // Speed of rotation in radians/second
+    float age;            // Current age in seconds
+    float max_age;        // Maximum lifetime in seconds
+    bool active;          // Whether the particle is currently active
+} Particle;
+
+// Initialize the explosion demo
+void initExplosionDemo(int canvasW, int canvasH);
+
+// Cleanup resources used by the explosion demo
+void cleanupExplosionDemo(void);
+
+// Create a new explosion at the specified canvas coordinates
+void handleClickExplosion(float canvasX, float canvasY);
+
+// Update all active particles
+void updateExplosion(float dt);
+
+// Render all active particles
+void renderExplosion(Canvas* canvas);
+
+#endif // EXPLOSION_DEMO_H
+</file>
+
+<file path="include/input.h">
+#ifndef INPUT_H
+#define INPUT_H
+
+#include <stdbool.h>
+
+// Initialize input system with screen dimensions
+void inputInit(int width, int height);
+
+// Call each frame before update()
+void inputUpdate(void);
+
+// Keyboard
+bool isKeyPressed(int scancode);      // held down
+bool wasKeyJustPressed(int scancode); // transitioned this frame
+bool wasKeyJustReleased(int scancode);
+
+// Mouse
+bool isMousePressed(void);            // any button
+bool isLeftMousePressed(void);
+bool isRightMousePressed(void);
+int  getMouseX(void);                 // canvas coords
+int  getMouseY(void);
+
+#endif // INPUT_H
+</file>
+
+<file path="include/physics_demo.h">
+#ifndef PHYSICS_DEMO_H
+#define PHYSICS_DEMO_H
+
+#include "canvas.h"
+#include <stdbool.h>
+
+// Number of physics objects to simulate
+#define PHYSICS_COUNT 2000
+
+// Number of square obstacles in the scene
+#define OBSTACLE_COUNT 5
+
+// Constants for physics simulation
+#define GRAVITY_ACCELERATION 500.0f
+
+// Default gravity scale (1.0 = normal gravity)
+extern float gravityScale;
+#define RESTITUTION 0.6f         // Bounciness factor
+#define FRICTION 0.8f            // Friction factor on collision
+#define PROJECTILE_SPEED 300.0f  // Initial speed of projectiles
+#define PROJECTILE_SIZE 6.0f     // Size of projectile triangles
+#define OBJECT_MIN_SIZE 2.0f     // Minimum size of physics objects
+#define OBJECT_MAX_SIZE 8.0f     // Maximum size of physics objects
+
+// Physics object structure
+typedef struct {
+    float cx, cy;              // Position
+    float vx, vy;              // Velocity 
+    float size;                // Size of the triangle
+    float angle;               // Current rotation angle
+    float angularVelocity;     // Rotation speed
+    Color color;               // Object color
+    bool active;               // Whether the object is currently active
+} PhysicsObject;
+
+// Square obstacle that physics objects can collide with
+typedef struct {
+    float cx, cy;         // Center position
+    float width, height;   // Dimensions of the square
+    float angle;          // Rotation angle (in radians)
+    Color color;          // Color of the square
+    bool active;          // Whether the obstacle is active
+} Obstacle;
+
+// Initialize the physics demo
+void initPhysicsDemo(int canvasW, int canvasH);
+
+// Clean up resources used by the physics demo
+void cleanupPhysicsDemo(void);
+
+// Spawn a projectile from a position aimed at a target position
+void spawnProjectile(float x, float y, float targetX, float targetY);
+
+// Update all physics objects
+void updatePhysics(float dt);
+
+// Render all physics objects
+void renderPhysics(Canvas* canvas);
+
+// Set the gravity scale factor (0.0 = no gravity, 1.0 = normal gravity)
+void setGravityScale(float scale);
+
+// Make all active physics objects jump with the specified impulse
+void jumpAllObjects(float impulse);
+
+#endif // PHYSICS_DEMO_H
+</file>
+
+<file path="include/text.h">
+#ifndef TEXT_H
+#define TEXT_H
+
+#include "canvas.h"
+#include <stdbool.h>
+
+// Initialize text subsystem with the given font filename (from assets/fonts) and point size
+bool textInit(const char* fontFilename, int fontSize);
+
+// Draw a UTF-8 string centered at (cx, cy) on the canvas
+void textDraw(Canvas* canvas, int cx, int cy, const char* text, Color color);
+
+// Shutdown and free text resources
+void textShutdown(void);
+
+#endif // TEXT_H
+</file>
+
+<file path="include/triangle_demo.h">
+#ifndef TRIANGLE_DEMO_H
+#define TRIANGLE_DEMO_H
+
+#include "canvas.h"
+
+// Number of triangles to generate and render
+#define TRIANGLE_COUNT 100000
+
+// Mouse interaction parameters
+#define MOUSE_INFLUENCE_RADIUS 100.0f  // How far the mouse affects triangles
+#define MOUSE_FORCE_FACTOR    20.0f    // How strongly the mouse pushes triangles
+
+// Initialize the triangle demo with random triangles
+void initRandomTriangles(int canvasW, int canvasH);
+
+// Render all triangles in the demo, with optional frustum culling
+void renderRandomTriangles(Canvas* canvas, float dt);
+
+// Update triangles based on mouse position
+// mouseX, mouseY: Mouse coordinates in window space
+// canvasWidth, canvasHeight: Dimensions of the canvas
+// isPressed: Whether mouse button is being pressed
+void updateTrianglesWithMouse(int mouseX, int mouseY, int canvasWidth, int canvasHeight, int isPressed);
+
+#endif // TRIANGLE_DEMO_H
+</file>
+
+<file path="include/triangle_simd.h">
+#ifndef TRIANGLE_SIMD_H
+#define TRIANGLE_SIMD_H
+
+#include "canvas.h"
+#include "triangle.h"
+#include <stdbool.h>
+
+// SIMD capabilities detection
+#if defined(__AVX2__)
+  #define USE_AVX2 1
+  #include <immintrin.h>
+  #define SIMD_LANES 8
+  typedef __m256 simd_float;
+  typedef __m256i simd_int;
+#elif defined(__SSE2__)
+  #define USE_SSE2 1
+  #include <emmintrin.h>
+  #define SIMD_LANES 4
+  typedef __m128 simd_float;
+  typedef __m128i simd_int;
+#else
+  #define SIMD_LANES 1
+#endif
+
+// Structure of Arrays (SoA) for SIMD-friendly triangle data
+typedef struct {
+    // Aligned arrays for SIMD processing
+    float* cx;         // x center coordinates
+    float* cy;         // y center coordinates
+    float* size;       // sizes
+    float* angle;      // current angles
+    float* speed;      // rotation speeds
+    Color* color;      // colors
+    bool* visible;     // culling result
+    int capacity;      // allocated size
+    int count;         // actual count
+} TriangleDataSIMD;
+
+// Initialize the SIMD triangle data structure
+void triangleDataSIMD_init(TriangleDataSIMD* data, int capacity);
+
+// Free the SIMD triangle data
+void triangleDataSIMD_free(TriangleDataSIMD* data);
+
+// Convert AoS triangle array to SoA format for SIMD processing
+void triangleDataSIMD_fromTriangles(TriangleDataSIMD* data, const Triangle* triangles, int count);
+
+// Update triangle angles and perform culling using SIMD
+void updateAndCullSIMD(TriangleDataSIMD* data, float dt, int canvasWidth, int canvasHeight);
+
+// Render all visible triangles using SIMD-accelerated processing
+void renderTrianglesSIMD(Canvas* canvas, TriangleDataSIMD* data);
+
+// Draw a batch of 4 or 8 triangles (depending on SSE or AVX)
+void drawTrianglesBatchSIMD(Canvas* canvas, const float* cx, const float* cy, 
+                          const float* size, const float* angle, const Color* color,
+                          int batchSize);
+
+#endif // TRIANGLE_SIMD_H
+</file>
+
+<file path="include/triangle.h">
+#ifndef TRIANGLE_H
+#define TRIANGLE_H
+
+#include "canvas.h"
+
+// One triangle instance
+typedef struct {
+    float cx, cy;    // center in canvas coords
+    float size;      // half-height
+    Color color;     // r,g,b
+    float angle;     // current rotation (radians)
+    float speed;     // radians/sec
+} Triangle;
+
+// Draw a triangle wireframe outline to the canvas
+void drawTriangle(Canvas* canvas, const Triangle* t);
+
+// Draw a line between two points
+void drawLine(Canvas* canvas, int x0, int y0, int x1, int y1, Color color);
+
+#endif // TRIANGLE_H
+</file>
+
+<file path="src/canvas.c">
+#include "../include/canvas.h"
+#include <stdlib.h>
+
+bool Canvas_Init(Canvas* canvas, int width, int height) {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) return false;
+    canvas->width  = width;
+    canvas->height = height;
+    canvas->window = SDL_CreateWindow(
+        "Batched Triangles",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        width, height, SDL_WINDOW_SHOWN
+    );
+    if (!canvas->window) return false;
+
+    canvas->renderer = SDL_CreateRenderer(
+        canvas->window, -1, SDL_RENDERER_ACCELERATED
+    );
+    if (!canvas->renderer) return false;
+
+    canvas->texture = SDL_CreateTexture(
+        canvas->renderer,
+        SDL_PIXELFORMAT_ARGB8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        width, height
+    );
+    if (!canvas->texture) return false;
+
+    // Allocate front buffer
+    canvas->pixels = calloc((size_t)width * height, sizeof(uint32_t));
+    if (!canvas->pixels) return false;
+    
+    // Allocate back buffer
+    canvas->backBuffer = calloc((size_t)width * height, sizeof(uint32_t));
+    if (!canvas->backBuffer) {
+        free(canvas->pixels);
+        return false;
+    }
+    
+    return true;
+}
+
+void Canvas_Destroy(Canvas* canvas) {
+    free(canvas->pixels);
+    free(canvas->backBuffer);
+    SDL_DestroyTexture(canvas->texture);
+    SDL_DestroyRenderer(canvas->renderer);
+    SDL_DestroyWindow(canvas->window);
+    SDL_Quit();
+}
+
+void Canvas_PutPixel(Canvas* canvas, int cx, int cy, Color color) {
+    int sx = canvas->width/2 + cx;
+    int sy = canvas->height/2 - cy;
+    if (sx < 0 || sy < 0 || sx >= canvas->width || sy >= canvas->height)
+        return;
+    uint32_t pixel = (0xFF << 24)
+                   | (color.r << 16)
+                   | (color.g <<  8)
+                   | (color.b <<  0);
+    canvas->backBuffer[sy * canvas->width + sx] = pixel;
+}
+
+void Canvas_Update(Canvas* canvas) {
+    // Upload back buffer to texture
+    SDL_UpdateTexture(
+        canvas->texture, NULL,
+        canvas->backBuffer,
+        canvas->width * sizeof(uint32_t)
+    );
+    
+    // Render the texture to the screen
+    SDL_RenderClear(canvas->renderer);
+    SDL_RenderCopy(canvas->renderer, canvas->texture, NULL, NULL);
+    SDL_RenderPresent(canvas->renderer);
+    
+    // Swap buffers
+    uint32_t* tmp = canvas->pixels;
+    canvas->pixels = canvas->backBuffer;
+    canvas->backBuffer = tmp;
+}
+</file>
+
+<file path="src/engine.c">
+#include "../include/engine.h"
+#include "../include/input.h"
+#include "../include/canvas.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+
+// Layer management
+static Layer* layers[32];
+static int layerCount = 0;
+
+// Global canvas that the game uses for drawing
+static Canvas canvas;
+static int targetFPS = 60;
+static bool isRunning = true;
+
+// Internal function to process SDL events and handle window close
+static void processEngineEvents(void) {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) isRunning = false;
+        if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) isRunning = false;
+    }
+}
+
+int runEngine(const char* title, int width, int height, int fps) {
+    // Initialize SDL and create canvas
+    if (!Canvas_Init(&canvas, width, height)) {
+        fprintf(stderr, "Failed to initialize canvas\n");
+        return 1;
+    }
+    
+    // Initialize SDL_ttf
+    if (TTF_Init() != 0) {
+        fprintf(stderr, "Failed to initialize SDL_ttf: %s\n", TTF_GetError());
+        Canvas_Destroy(&canvas);
+        return 1;
+    }
+    
+    // Change window title
+    SDL_SetWindowTitle(canvas.window, title);
+    
+    // Set target FPS
+    targetFPS = fps;
+    Uint32 frameTargetTime = 1000 / targetFPS;
+    
+    // Initialize input system
+    inputInit(width, height);
+    
+    // Call user's setup function
+    setup();
+    
+    // Main game loop variables
+    Uint32 frameStart, frameTime;
+    Uint32 previousTime = SDL_GetTicks();
+    
+    // Main game loop
+    while (isRunning) {
+        frameStart = SDL_GetTicks();
+        
+        // Process SDL events
+        processEngineEvents();
+        
+        // Update input state
+        inputUpdate();
+        
+        // Compute delta time
+        Uint32 currentTime = SDL_GetTicks();
+        Uint32 deltaTime = currentTime - previousTime;
+        previousTime = currentTime;
+        float dt = deltaTime / 1000.0f;
+        
+        // Clear back buffer once at the beginning of frame
+        memset(canvas.backBuffer, 0, canvas.width * canvas.height * sizeof(uint32_t));
+        
+        // Call update function for each enabled layer
+        for (int i = 0; i < layerCount; i++) {
+            if (layers[i]->enabled) layers[i]->update(dt);
+        }
+        
+        // Call render function for each enabled layer in order (background to foreground)
+        // This ensures layers render on top of each other correctly
+        for (int i = 0; i < layerCount; i++) {
+            if (layers[i]->enabled) layers[i]->render();
+        }
+        
+        // Present the frame
+        Canvas_Update(&canvas);
+        
+        // Cap the frame rate
+        frameTime = SDL_GetTicks() - frameStart;
+        if (frameTime < frameTargetTime) {
+            SDL_Delay(frameTargetTime - frameTime);
+        }
+    }
+    
+    // Clean up resources
+    textShutdown();
+    TTF_Quit();
+    Canvas_Destroy(&canvas);
+    return 0;
+}
+
+// Function to get the canvas for drawing
+Canvas* getCanvas(void) {
+    return &canvas;
+}
+
+// Register a new layer
+void registerLayer(Layer* layer) {
+    if (layerCount >= 32) {
+        fprintf(stderr, "Error: Maximum number of layers (32) exceeded\n");
+        return;
+    }
+    
+    // Check if layer with same name already exists
+    for (int i = 0; i < layerCount; i++) {
+        if (strcmp(layers[i]->name, layer->name) == 0) {
+            fprintf(stderr, "Error: Layer with name '%s' already exists\n", layer->name);
+            return;
+        }
+    }
+    
+    // Add the layer to the array
+    layers[layerCount++] = layer;
+}
+
+// Unregister a layer by name
+void unregisterLayer(const char* name) {
+    for (int i = 0; i < layerCount; i++) {
+        if (strcmp(layers[i]->name, name) == 0) {
+            // Remove layer by shifting all subsequent layers down
+            for (int j = i; j < layerCount - 1; j++) {
+                layers[j] = layers[j+1];
+            }
+            layerCount--;
+            return;
+        }
+    }
+    
+    fprintf(stderr, "Warning: Attempted to unregister nonexistent layer '%s'\n", name);
+}
+
+// Enable or disable a layer by name
+void setLayerEnabled(const char* name, bool enabled) {
+    for (int i = 0; i < layerCount; i++) {
+        if (strcmp(layers[i]->name, name) == 0) {
+            layers[i]->enabled = enabled;
+            return;
+        }
+    }
+    
+    fprintf(stderr, "Warning: Attempted to set enabled state for nonexistent layer '%s'\n", name);
+}
+</file>
+
+<file path="src/explosion_demo.c">
+#include "../include/explosion_demo.h"
+#include "../include/triangle.h"
+#include <stdlib.h>
+#include <math.h>
+#include <stdbool.h>
+#include <time.h>
+
+// Ensure we have the declaration for the triangle drawing function
+extern void drawTriangle(Canvas* canvas, const Triangle* t);
+
+// Array of particles for the explosion effect
+static Particle particles[MAX_PARTICLES];
+static int canvasWidth, canvasHeight;
+
+// Initialize all particles as inactive
+void initExplosionDemo(int canvasW, int canvasH) {
+    // Store canvas dimensions for later use
+    canvasWidth = canvasW;
+    canvasHeight = canvasH;
+    
+    // Seed random number generator if not done already
+    static bool seeded = false;
+    if (!seeded) {
+        srand((unsigned)time(NULL));
+        seeded = true;
+    }
+    
+    // Initialize all particles as inactive
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        particles[i].active = false;
+    }
+}
+
+// Free any resources allocated by the explosion demo
+void cleanupExplosionDemo(void) {
+    // Currently no dynamic resources to clean up
+}
+
+// Helper function to get a random float between min and max
+static float randomRange(float min, float max) {
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+// Helper function to get a random color
+static Color randomColor(void) {
+    // Prefer brighter colors for better visibility
+    return (Color){
+        (uint8_t)(128 + rand() % 128),
+        (uint8_t)(128 + rand() % 128),
+        (uint8_t)(128 + rand() % 128)
+    };
+}
+
+// Find an available particle slot or reuse the oldest one if none available
+static int findAvailableParticleSlot(void) {
+    // First try to find an inactive particle
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) {
+            return i;
+        }
+    }
+    
+    // If all particles are active, find the oldest one to reuse
+    int oldestIndex = 0;
+    float oldestAge = 0.0f;
+    
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        float ageRatio = particles[i].age / particles[i].max_age;
+        if (ageRatio > oldestAge) {
+            oldestAge = ageRatio;
+            oldestIndex = i;
+        }
+    }
+    
+    return oldestIndex;
+}
+
+// Create a new explosion at the specified canvas coordinates
+void handleClickExplosion(float canvasX, float canvasY) {
+    // Create PARTICLES_PER_EXPLOSION new particles
+    for (int i = 0; i < PARTICLES_PER_EXPLOSION; i++) {
+        // Find an available particle slot
+        int index = findAvailableParticleSlot();
+        
+        // Initialize the particle
+        particles[index].cx = canvasX;
+        particles[index].cy = canvasY;
+        
+        // Random direction (in radians)
+        float angle = randomRange(0, 2.0f * M_PI);
+        float speed = randomRange(PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
+        
+        // Convert angle and speed to velocity components
+        particles[index].dx = cosf(angle) * speed;
+        particles[index].dy = sinf(angle) * speed;
+        
+        // Random size, color, rotation
+        particles[index].size = randomRange(PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
+        particles[index].color = randomColor();
+        particles[index].angle = randomRange(0, 2.0f * M_PI);
+        particles[index].rotation_speed = randomRange(-10.0f, 10.0f);
+        
+        // Lifetime
+        particles[index].age = 0.0f;
+        particles[index].max_age = randomRange(PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME);
+        particles[index].active = true;
+    }
+}
+
+// Update all active particles
+void updateExplosion(float dt) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+        
+        // Update age and check if particle has expired
+        particles[i].age += dt;
+        if (particles[i].age >= particles[i].max_age) {
+            particles[i].active = false;
+            continue;
+        }
+        
+        // Update position based on velocity
+        particles[i].cx += particles[i].dx * dt;
+        particles[i].cy += particles[i].dy * dt;
+        
+        // Update rotation
+        particles[i].angle += particles[i].rotation_speed * dt;
+        
+        // Add a simple gravity effect
+        particles[i].dy -= 50.0f * dt;
+        
+        // Apply some drag to slow particles over time
+        float drag = 0.95f;
+        particles[i].dx *= powf(drag, dt * 10.0f);
+        particles[i].dy *= powf(drag, dt * 10.0f);
+        
+        // Fade out the particle as it gets older
+        // (Ratio used later for color fading during rendering)
+        
+        // Check if particle is outside the canvas bounds with a margin
+        float margin = 50.0f; // Allow particles to go slightly off-screen
+        if (particles[i].cx < -canvasWidth/2.0f - margin || 
+            particles[i].cx > canvasWidth/2.0f + margin ||
+            particles[i].cy < -canvasHeight/2.0f - margin || 
+            particles[i].cy > canvasHeight/2.0f + margin) {
+            particles[i].active = false;
+        }
+    }
+}
+
+// Render all active particles
+void renderExplosion(Canvas* canvas) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (!particles[i].active) continue;
+        
+        // Create a temporary triangle with the particle properties
+        Triangle t;
+        t.cx = particles[i].cx;
+        t.cy = particles[i].cy;
+        t.size = particles[i].size;
+        t.angle = particles[i].angle;
+        
+        // Fade out color as the particle ages
+        float fadeRatio = 1.0f - (particles[i].age / particles[i].max_age);
+        t.color.r = (uint8_t)(particles[i].color.r * fadeRatio);
+        t.color.g = (uint8_t)(particles[i].color.g * fadeRatio);
+        t.color.b = (uint8_t)(particles[i].color.b * fadeRatio);
+        
+        // Draw the particle as a small triangle
+        drawTriangle(canvas, &t);
+    }
+}
+</file>
+
+<file path="src/hello_world_demo.c">
+/**
+ * @file hello_world_demo.c
+ * @brief Implementation of the hello world demo with bouncing shapes.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+#include "../include/engine.h"
+#include "../include/input.h"
+#include "../include/triangle.h"
+#include "../include/text.h"
+#include "hello_world_demo.h"
+
+/**
+ * @brief Number of triangles to display in the demo
+ */
+#define NUM_TRIANGLES 5
+
+/**
+ * @brief Number of circles to display in the demo
+ */
+#define NUM_CIRCLES 5
+
+/**
+ * @brief Structure for circle objects
+ */
+typedef struct {
+    float cx, cy;         /**< Center position */
+    float vx, vy;         /**< Velocity */
+    float radius;         /**< Circle radius */
+    Color color;          /**< Circle color */
+} Circle;
+
+/* Global state for the demo */
+static int WINDOW_WIDTH = 800;            /**< Window width in pixels (default) */
+static int WINDOW_HEIGHT = 600;           /**< Window height in pixels (default) */
+static Triangle triangles[NUM_TRIANGLES]; /**< Array of triangles */
+static Circle circles[NUM_CIRCLES];       /**< Array of circles */
+static bool darkBackground = true;        /**< Background color toggle */
+
+/* Layer declarations */
+static void bgUpdate(float dt);
+static void bgRender(void);
+static Layer background = { "Background", bgUpdate, bgRender, true };
+
+static void fgUpdate(float dt);
+static void fgRender(void);
+static Layer foreground = { "Foreground", fgUpdate, fgRender, true };
+
+/**
+ * @brief Generate a random color
+ * 
+ * Creates a color with random RGB values (0-255).
+ * 
+ * @return Randomly generated Color
+ */
+static Color randomColor(void) {
+    Color c;
+    c.r = rand() % 256;
+    c.g = rand() % 256;
+    c.b = rand() % 256;
+    return c;
+}
+
+/**
+ * @brief Draw a circle at the specified position
+ * 
+ * Implements a filled circle using Bresenham's circle algorithm.
+ * 
+ * @param canvas Pointer to the Canvas to draw on
+ * @param cx X-coordinate of circle center
+ * @param cy Y-coordinate of circle center
+ * @param radius Radius of the circle in pixels
+ * @param color Color to use for drawing the circle
+ */
+static void drawCircle(Canvas* canvas, float cx, float cy, float radius, Color color) {
+    // Draw a circle using Bresenham's circle algorithm
+    int x = 0;
+    int y = (int)radius;
+    int d = 3 - 2 * (int)radius;
+    
+    while (y >= x) {
+        // Draw the eight octants
+        Canvas_PutPixel(canvas, (int)cx + x, (int)cy + y, color);
+        Canvas_PutPixel(canvas, (int)cx + y, (int)cy + x, color);
+        Canvas_PutPixel(canvas, (int)cx - x, (int)cy + y, color);
+        Canvas_PutPixel(canvas, (int)cx - y, (int)cy + x, color);
+        Canvas_PutPixel(canvas, (int)cx + x, (int)cy - y, color);
+        Canvas_PutPixel(canvas, (int)cx + y, (int)cy - x, color);
+        Canvas_PutPixel(canvas, (int)cx - x, (int)cy - y, color);
+        Canvas_PutPixel(canvas, (int)cx - y, (int)cy - x, color);
+        
+        if (d < 0) {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y--;
+        }
+        x++;
+    }
+    
+    // Fill the circle
+    for (int r = 0; r < radius; r++) {
+        int x = 0;
+        int y = r;
+        int d = 3 - 2 * r;
+        
+        while (y >= x) {
+            // Draw horizontal lines between the points
+            for (int i = (int)cx - x; i <= (int)cx + x; i++) {
+                Canvas_PutPixel(canvas, i, (int)cy + y, color);
+                Canvas_PutPixel(canvas, i, (int)cy - y, color);
+            }
+            
+            for (int i = (int)cx - y; i <= (int)cx + y; i++) {
+                Canvas_PutPixel(canvas, i, (int)cy + x, color);
+                Canvas_PutPixel(canvas, i, (int)cy - x, color);
+            }
+            
+            if (d < 0) {
+                d = d + 4 * x + 6;
+            } else {
+                d = d + 4 * (x - y) + 10;
+                y--;
+            }
+            x++;
+        }
+    }
+}
+
+/**
+ * @brief Set the window dimensions for the hello world demo
+ * 
+ * @param width Window width in pixels
+ * @param height Window height in pixels
+ */
+void helloWorldDemo_SetDimensions(int width, int height) {
+    WINDOW_WIDTH = width;
+    WINDOW_HEIGHT = height;
+}
+
+/**
+ * @brief Setup function called once at startup
+ * 
+ * Initializes all the elements needed for the demo:
+ * - Random triangles with size, position, color
+ * - Random circles with velocity, size, position, color
+ * - Registers the layers to the engine
+ * - Initializes the text rendering system
+ */
+void helloWorldDemo_Setup(void) {
+    // Seed the random number generator
+    srand((unsigned int)time(NULL));
+    
+    // Initialize triangles with random properties
+    for (int i = 0; i < NUM_TRIANGLES; i++) {
+        // Random position within canvas bounds
+        triangles[i].cx = (float)(rand() % WINDOW_WIDTH - (WINDOW_WIDTH/2.0f));
+        triangles[i].cy = (float)(rand() % WINDOW_HEIGHT - (WINDOW_HEIGHT/2.0f));
+        
+        // Random size between 20 and 40
+        triangles[i].size = 20.0f + (float)(rand() % 21);
+        
+        // Random angle
+        triangles[i].angle = (float)(rand() % 628) / 100.0f;
+        
+        // Random color
+        triangles[i].color = randomColor();
+        
+        // Random rotation speed
+        triangles[i].speed = ((float)(rand() % 200) / 100.0f) - 1.0f;
+    }
+    
+    // Initialize circles with random properties
+    for (int i = 0; i < NUM_CIRCLES; i++) {
+        // Random position within canvas bounds
+        circles[i].cx = (float)(rand() % WINDOW_WIDTH - (WINDOW_WIDTH/2.0f));
+        circles[i].cy = (float)(rand() % WINDOW_HEIGHT - (WINDOW_HEIGHT/2.0f));
+        
+        // Random velocity (-100 to 100 pixels per second)
+        circles[i].vx = ((float)(rand() % 200) - 100.0f);
+        circles[i].vy = ((float)(rand() % 200) - 100.0f);
+        
+        // Random radius between 15 and 30
+        circles[i].radius = 15.0f + (float)(rand() % 16);
+        
+        // Random color
+        circles[i].color = randomColor();
+    }
+    
+    // Register layers
+    registerLayer(&background);
+    registerLayer(&foreground);
+    
+    // Initialize text rendering with font from assets/fonts directory
+    if (!textInit("Ribeye-Regular.ttf", 24)) {
+        fprintf(stderr, "Error: Failed to initialize text subsystem\n");
+        // Continue anyway - we might see warnings in console
+    }
+    
+    // Print instructions
+    printf("Hello World Demo with Bouncing Shapes\n");
+    printf("Controls:\n");
+    printf("  SPACE: Toggle background color\n");
+    printf("  ESC: Exit\n");
+}
+
+/**
+ * @brief Background layer update function
+ * 
+ * Handles space key to toggle background color.
+ * 
+ * @param dt Delta time in seconds since last update
+ */
+static void bgUpdate(float dt) {
+    // Note: inputUpdate is now called in fgUpdate to avoid duplicate calls
+    // We still handle the space key here as it's background-related
+    if (wasKeyJustPressed(SDL_SCANCODE_SPACE)) {
+        darkBackground = !darkBackground;
+        printf("Background color toggled: %s\n", darkBackground ? "Dark" : "Dark Blue");
+    }
+    
+    (void)dt; // Avoid unused parameter warning
+}
+
+/**
+ * @brief Background layer render function
+ * 
+ * Draws the background color (either black or dark blue).
+ */
+static void bgRender(void) {
+    Canvas* canvas = getCanvas();
+    
+    // If darkBackground is false, fill with dark blue
+    if (!darkBackground) {
+        for (int y = 0; y < WINDOW_HEIGHT; y++) {
+            for (int x = 0; x < WINDOW_WIDTH; x++) {
+                Color darkBlue = {20, 20, 50};
+                Canvas_PutPixel(canvas, x - WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - y, darkBlue);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Foreground layer update function
+ * 
+ * Updates all triangles and circles positions, handles bouncing off edges.
+ * Also processes input for all layers (single point of input handling).
+ * 
+ * @param dt Delta time in seconds since last update
+ */
+static void fgUpdate(float dt) {
+    // Process input first - this is the main input update for all layers
+    inputUpdate();
+    
+    // Update triangles (rotate them)
+    for (int i = 0; i < NUM_TRIANGLES; i++) {
+        // Rotate triangle based on its speed
+        triangles[i].angle += triangles[i].speed * dt;
+        
+        // Move triangles
+        float moveSpeed = 50.0f; // pixels per second
+        float angle = (float)(rand() % 628) / 100.0f;
+        
+        triangles[i].cx += cosf(angle) * moveSpeed * dt;
+        triangles[i].cy += sinf(angle) * moveSpeed * dt;
+        
+        // Bounce off boundaries
+        float bound = triangles[i].size * 1.5f;
+        if (triangles[i].cx < -WINDOW_WIDTH/2.0f + bound) {
+            triangles[i].cx = -WINDOW_WIDTH/2.0f + bound;
+            triangles[i].speed = -triangles[i].speed;
+        }
+        if (triangles[i].cx > WINDOW_WIDTH/2.0f - bound) {
+            triangles[i].cx = WINDOW_WIDTH/2.0f - bound;
+            triangles[i].speed = -triangles[i].speed;
+        }
+        if (triangles[i].cy < -WINDOW_HEIGHT/2.0f + bound) {
+            triangles[i].cy = -WINDOW_HEIGHT/2.0f + bound;
+            triangles[i].speed = -triangles[i].speed;
+        }
+        if (triangles[i].cy > WINDOW_HEIGHT/2.0f - bound) {
+            triangles[i].cy = WINDOW_HEIGHT/2.0f - bound;
+            triangles[i].speed = -triangles[i].speed;
+        }
+    }
+    
+    // Update circles (move them)
+    for (int i = 0; i < NUM_CIRCLES; i++) {
+        // Update position based on velocity
+        circles[i].cx += circles[i].vx * dt;
+        circles[i].cy += circles[i].vy * dt;
+        
+        // Bounce off the boundaries
+        if (circles[i].cx - circles[i].radius < -WINDOW_WIDTH/2.0f) {
+            circles[i].cx = -WINDOW_WIDTH/2.0f + circles[i].radius;
+            circles[i].vx = fabsf(circles[i].vx);
+        }
+        if (circles[i].cx + circles[i].radius > WINDOW_WIDTH/2.0f) {
+            circles[i].cx = WINDOW_WIDTH/2.0f - circles[i].radius;
+            circles[i].vx = -fabsf(circles[i].vx);
+        }
+        if (circles[i].cy - circles[i].radius < -WINDOW_HEIGHT/2.0f) {
+            circles[i].cy = -WINDOW_HEIGHT/2.0f + circles[i].radius;
+            circles[i].vy = fabsf(circles[i].vy);
+        }
+        if (circles[i].cy + circles[i].radius > WINDOW_HEIGHT/2.0f) {
+            circles[i].cy = WINDOW_HEIGHT/2.0f - circles[i].radius;
+            circles[i].vy = -fabsf(circles[i].vy);
+        }
+    }
+}
+
+/**
+ * @brief Foreground layer render function
+ * 
+ * Draws all triangles, circles, and the hello world text.
+ */
+static void fgRender(void) {
+    Canvas* canvas = getCanvas();
+    
+    // Draw hello world text
+    Color white = {255, 255, 255};
+    textDraw(canvas, 0, WINDOW_HEIGHT/3.0f, "Hello World!", white);
+    
+    // Draw all triangles
+    for (int i = 0; i < NUM_TRIANGLES; i++) {
+        drawTriangle(canvas, &triangles[i]);
+    }
+    
+    // Draw all circles
+    for (int i = 0; i < NUM_CIRCLES; i++) {
+        drawCircle(canvas, circles[i].cx, circles[i].cy, circles[i].radius, circles[i].color);
+    }
+}
+
+/* End of the hello world demo implementation */
+</file>
+
+<file path="src/hello_world_demo.h">
+/**
+ * @file hello_world_demo.h
+ * @brief Simple hello world demo with bouncing triangles and circles.
+ * 
+ * This demo implements a simple scene with:
+ *   - "Hello World!" text centered on screen
+ *   - Randomly placed bouncing triangles with rotation
+ *   - Randomly placed bouncing circles
+ *   - Toggleable background color with SPACE key
+ * 
+ * Demonstrates basic usage of the tlacuilolli engine, layers,
+ * primitive shape rendering and text display.
+ */
+
+#ifndef HELLO_WORLD_DEMO_H
+#define HELLO_WORLD_DEMO_H
+
+/**
+ * @brief Set global window dimensions for the hello world demo
+ * 
+ * Must be called before running the demo to initialize dimensions
+ * 
+ * @param width Window width in pixels
+ * @param height Window height in pixels
+ */
+void helloWorldDemo_SetDimensions(int width, int height);
+
+/**
+ * @brief Setup the hello world demo
+ * 
+ * This function is called directly by the engine's setup process.
+ * It initializes all resources, shapes, and registers layers.
+ * 
+ * Note: Call helloWorldDemo_SetDimensions() before the engine's runEngine() function.
+ */
+void helloWorldDemo_Setup(void);
+
+#endif /* HELLO_WORLD_DEMO_H */
+</file>
+
+<file path="src/input.c">
+#include "../include/input.h"
+#include <SDL2/SDL.h>
+
+// Current state
+static bool currentKeys[SDL_NUM_SCANCODES];
+static bool previousKeys[SDL_NUM_SCANCODES];
+static bool currentMouseButtons[5];
+static int mouseX, mouseY;  // Canvas coordinates (0,0 at center)
+static int screenWidth, screenHeight;
+
+// Initialize input system
+void inputInit(int width, int height) {
+    screenWidth = width;
+    screenHeight = height;
+    
+    // Initialize key arrays
+    for (int i = 0; i < SDL_NUM_SCANCODES; i++) {
+        currentKeys[i] = false;
+        previousKeys[i] = false;
+    }
+    
+    // Initialize mouse buttons
+    for (int i = 0; i < 5; i++) {
+        currentMouseButtons[i] = false;
+    }
+    
+    // Initialize mouse position
+    mouseX = 0;
+    mouseY = 0;
+}
+
+void inputUpdate(void) {
+    // Copy current state to previous state
+    for (int i = 0; i < SDL_NUM_SCANCODES; i++) {
+        previousKeys[i] = currentKeys[i];
+    }
+
+    // Update current state from SDL
+    const Uint8* keyboardState = SDL_GetKeyboardState(NULL);
+    for (int i = 0; i < SDL_NUM_SCANCODES; i++) {
+        currentKeys[i] = keyboardState[i];
+    }
+    
+    // Update mouse state
+    Uint32 buttonState = SDL_GetMouseState(&mouseX, &mouseY);
+    
+    // Convert from screen coordinates to canvas coordinates
+    mouseX = mouseX - screenWidth / 2;
+    mouseY = screenHeight / 2 - mouseY;
+    
+    // Update mouse button states
+    currentMouseButtons[0] = (buttonState & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+    currentMouseButtons[1] = (buttonState & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
+    currentMouseButtons[2] = (buttonState & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+    currentMouseButtons[3] = (buttonState & SDL_BUTTON(SDL_BUTTON_X1)) != 0;
+    currentMouseButtons[4] = (buttonState & SDL_BUTTON(SDL_BUTTON_X2)) != 0;
+}
+
+// Keyboard functions
+bool isKeyPressed(int scancode) {
+    if (scancode < 0 || scancode >= SDL_NUM_SCANCODES) return false;
+    return currentKeys[scancode];
+}
+
+bool wasKeyJustPressed(int scancode) {
+    if (scancode < 0 || scancode >= SDL_NUM_SCANCODES) return false;
+    return currentKeys[scancode] && !previousKeys[scancode];
+}
+
+bool wasKeyJustReleased(int scancode) {
+    if (scancode < 0 || scancode >= SDL_NUM_SCANCODES) return false;
+    return !currentKeys[scancode] && previousKeys[scancode];
+}
+
+// Mouse functions
+bool isMousePressed(void) {
+    return currentMouseButtons[0] || currentMouseButtons[1] || 
+           currentMouseButtons[2] || currentMouseButtons[3] || 
+           currentMouseButtons[4];
+}
+
+bool isLeftMousePressed(void) {
+    return currentMouseButtons[0];
+}
+
+bool isRightMousePressed(void) {
+    return currentMouseButtons[2];
+}
+
+int getMouseX(void) {
+    return mouseX;
+}
+
+int getMouseY(void) {
+    return mouseY;
+}
+</file>
+
+<file path="src/main.c">
+/**
+ * @file main.c
+ * @brief Main entry point for the tlacuilolli engine demo
+ * 
+ * This file provides a minimal setup that delegates all demo functionality
+ * to the hello_world_demo module. Instead of embedding all the demo code
+ * directly in main.c, we've modularized it into a reusable component.
+ * 
+ * The hello_world_demo module contains all the implementation details for:
+ * - Rendering bouncing triangles with random properties
+ * - Rendering bouncing circles with physics
+ * - Displaying "Hello World!" text
+ * - Handling space key to toggle background color
+ * 
+ * @see hello_world_demo.h for the demo's API details
+ */
+
+#include <stdio.h>
+#include "../include/engine.h"
+#include "hello_world_demo.h" /* Import our hello world demo module */
+
+/* Window configuration */
+#define WINDOW_WIDTH   800 /* Window width in pixels */
+#define WINDOW_HEIGHT  600 /* Window height in pixels */
+#define TARGET_FPS     60  /* Target frame rate */
+
+/**
+ * @brief Setup function - automatically called by the engine at startup
+ * 
+ * This is the entry point for our application initialization.
+ * We simply delegate to the hello_world_demo module's setup function.
+ */
+void setup(void) {
+    /* Call the hello world demo's setup function directly */
+    helloWorldDemo_Setup();
+}
+
+/**
+ * @brief Main function - program entry point
+ * 
+ * Initializes the hello world demo with proper window dimensions,
+ * then starts the engine which will call our setup() function.
+ * 
+ * @return Exit code (0 on success, non-zero on failure)
+ */
+int main(void) {
+    /* Set dimensions for the hello world demo */
+    helloWorldDemo_SetDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
+    
+    /* Run the engine with the window parameters */
+    return runEngine("Hello World Bouncing Shapes", WINDOW_WIDTH, WINDOW_HEIGHT, TARGET_FPS);
+}
+</file>
+
+<file path="src/physics_demo.c">
+#include "../include/physics_demo.h"
+#include "../include/triangle.h"
+#include <stdlib.h>
+#include <math.h>
+#include <stdio.h>
+#include <time.h>
+
+// Global gravity scale variable
+float gravityScale = 1.0f;
+
+// Canvas dimensions for collision detection
+static int canvasWidth, canvasHeight;
+
+// Array of physics objects
+static PhysicsObject objects[PHYSICS_COUNT];
+
+// Array of square obstacles
+static Obstacle obstacles[OBSTACLE_COUNT];
+
+// Ensure we have the declaration for the triangle drawing function
+extern void drawTriangle(Canvas* canvas, const Triangle* t);
+
+// Helper function to get a random float between min and max
+static float randomRange(float min, float max) {
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+// Helper function to get a random color
+static Color randomColor(void) {
+    return (Color){
+        (uint8_t)(128 + rand() % 128),
+        (uint8_t)(128 + rand() % 128),
+        (uint8_t)(128 + rand() % 128)
+    };
+}
+
+// Helper function to create a square with specific properties
+static void createObstacle(int index, float x, float y, float width, float height, float angle, Color color) {
+    obstacles[index].cx = x;
+    obstacles[index].cy = y;
+    obstacles[index].width = width;
+    obstacles[index].height = height;
+    obstacles[index].angle = angle;
+    obstacles[index].color = color;
+    obstacles[index].active = true;
+}
+
+// Function to draw a rotated rectangle
+static void drawRotatedRectangle(Canvas* canvas, const Obstacle* obstacle) {
+    // Calculate the four corners of the rectangle
+    float halfWidth = obstacle->width / 2.0f;
+    float halfHeight = obstacle->height / 2.0f;
+    
+    // Pre-calculate sine and cosine of the angle
+    float cosa = cosf(obstacle->angle);
+    float sina = sinf(obstacle->angle);
+    
+    // Calculate corner positions (rotated around center)
+    float corners[4][2] = {
+        { -halfWidth, -halfHeight }, // Top-left
+        {  halfWidth, -halfHeight }, // Top-right
+        {  halfWidth,  halfHeight }, // Bottom-right
+        { -halfWidth,  halfHeight }  // Bottom-left
+    };
+    
+    int xPoints[4], yPoints[4];
+    
+    // Rotate and translate each corner
+    for (int i = 0; i < 4; i++) {
+        // Rotate point around origin
+        float rx = corners[i][0] * cosa - corners[i][1] * sina;
+        float ry = corners[i][0] * sina + corners[i][1] * cosa;
+        
+        // Just directly add the rotated point to the obstacle center
+        // Our physics is working correctly, and the triangles are interacting properly
+        // So we'll keep this simple coordinate transformation
+        xPoints[i] = (int)(obstacle->cx + rx);
+        yPoints[i] = (int)(obstacle->cy + ry);
+    }
+    
+    // Draw the four lines of the rectangle
+    for (int i = 0; i < 4; i++) {
+        int next = (i + 1) % 4;
+        drawLine(canvas, xPoints[i], yPoints[i], xPoints[next], yPoints[next], obstacle->color);
+    }
+}
+
+// Initialize the physics demo
+void initPhysicsDemo(int canvasW, int canvasH) {
+    // Store canvas dimensions for collision detection
+    canvasWidth = canvasW;
+    canvasHeight = canvasH;
+    
+    // Seed random number generator if not already done
+    static bool seeded = false;
+    if (!seeded) {
+        srand((unsigned int)time(NULL));
+        seeded = true;
+    }
+    
+    // Initialize physics objects with random properties
+    for (int i = 0; i < PHYSICS_COUNT; i++) {
+        objects[i].cx = randomRange(-canvasW / 3.0f, canvasW / 3.0f);
+        objects[i].cy = randomRange(0, canvasH / 2.0f); // Start from upper half
+        objects[i].vx = randomRange(-50.0f, 50.0f);
+        objects[i].vy = randomRange(-20.0f, 50.0f);
+        objects[i].size = randomRange(OBJECT_MIN_SIZE, OBJECT_MAX_SIZE);
+        objects[i].angle = randomRange(0, 2.0f * M_PI);
+        objects[i].angularVelocity = randomRange(-2.0f, 2.0f);
+        objects[i].color = randomColor();
+        objects[i].active = true;
+    }
+    
+    // Leave some objects inactive initially
+    for (int i = 0; i < PHYSICS_COUNT / 5; i++) {
+        objects[rand() % PHYSICS_COUNT].active = false;
+    }
+    
+    // Initialize obstacle squares with different positions and sizes
+    float halfW = canvasW / 2.0f;
+    float halfH = canvasH / 2.0f;
+    
+    // 1. Left platform
+    createObstacle(0, -halfW * 0.6f, -halfH * 0.2f, 120.0f, 30.0f, 0.2f, 
+                   (Color){ 50, 200, 50 });
+                   
+    // 2. Right platform
+    createObstacle(1, halfW * 0.6f, -halfH * 0.3f, 120.0f, 30.0f, -0.2f, 
+                   (Color){ 50, 50, 200 });
+                   
+    // 3. Center obstacle
+    createObstacle(2, 0.0f, 0.0f, 100.0f, 100.0f, M_PI / 4.0f, 
+                   (Color){ 200, 50, 50 });
+                   
+    // 4. Top-left obstacle
+    createObstacle(3, -halfW * 0.5f, halfH * 0.5f, 70.0f, 70.0f, 0.0f, 
+                   (Color){ 200, 200, 50 });
+                   
+    // 5. Bottom-center small obstacle
+    createObstacle(4, 0.0f, -halfH * 0.7f, 50.0f, 50.0f, M_PI / 6.0f, 
+                   (Color){ 200, 50, 200 });
+    
+    printf("Physics demo initialized with %d active objects and %d obstacles\n", 
+           PHYSICS_COUNT, OBSTACLE_COUNT);
+}
+
+// Clean up resources used by the physics demo
+void cleanupPhysicsDemo(void) {
+    // Currently no dynamic resources to clean up
+}
+
+// Find an inactive object to reuse, or overwrite the oldest one
+static int findAvailableObjectSlot(void) {
+    // First check for inactive objects
+    for (int i = 0; i < PHYSICS_COUNT; i++) {
+        if (!objects[i].active) {
+            return i;
+        }
+    }
+    
+    // If all active, select a random one
+    return rand() % PHYSICS_COUNT;
+}
+
+// Spawn a projectile from a position aimed at a target position
+void spawnProjectile(float x, float y, float targetX, float targetY) {
+    // Find an available slot
+    int index = findAvailableObjectSlot();
+    
+    // Calculate direction vector
+    float dx = targetX - x;
+    float dy = targetY - y;
+    
+    // Normalize direction vector
+    float length = sqrtf(dx*dx + dy*dy);
+    if (length < 0.0001f) {
+        // Avoid division by zero, shoot upward if target is same as origin
+        dx = 0;
+        dy = 1;
+    } else {
+        dx /= length;
+        dy /= length;
+    }
+    
+    // Initialize the projectile
+    objects[index].cx = x;
+    objects[index].cy = y;
+    objects[index].vx = dx * PROJECTILE_SPEED;
+    objects[index].vy = dy * PROJECTILE_SPEED;
+    objects[index].size = PROJECTILE_SIZE;
+    objects[index].angle = atan2f(dy, dx);
+    objects[index].angularVelocity = randomRange(-3.0f, 3.0f);
+    
+    // Make projectile a bright color to stand out
+    objects[index].color = (Color){
+        (uint8_t)(180 + rand() % 75),
+        (uint8_t)(180 + rand() % 75),
+        (uint8_t)(180 + rand() % 75)
+    };
+    
+    objects[index].active = true;
+}
+
+// Set the gravity scale factor
+void setGravityScale(float scale) {
+    gravityScale = scale;
+}
+
+// Make all active physics objects jump with the specified impulse
+void jumpAllObjects(float impulse) {
+    // Apply an upward velocity impulse to all active objects
+    for (int i = 0; i < PHYSICS_COUNT; i++) {
+        if (objects[i].active) {
+            // Add the impulse to the y velocity (upward)
+            objects[i].vy += impulse;
+            
+            // Add some random horizontal movement for variety
+            objects[i].vx += randomRange(-20.0f, 20.0f);
+            
+            // Add some random spin
+            objects[i].angularVelocity += randomRange(-2.0f, 2.0f);
+        }
+    }
+}
+
+// Check if a point is inside a rotated rectangle
+static bool pointInRotatedRect(float px, float py, const Obstacle* rect) {
+    // Translate point to origin
+    float tx = px - rect->cx;
+    float ty = py - rect->cy;
+    
+    // Rotate point in the opposite direction of rectangle
+    float cosa = cosf(-rect->angle);
+    float sina = sinf(-rect->angle);
+    float rx = tx * cosa - ty * sina;
+    float ry = tx * sina + ty * cosa;
+    
+    // Now check if point is within the axis-aligned rectangle
+    float halfW = rect->width / 2.0f;
+    float halfH = rect->height / 2.0f;
+    
+    return (rx >= -halfW && rx <= halfW && ry >= -halfH && ry <= halfH);
+}
+
+// Calculate the closest point on a line segment to a given point
+static void closestPointOnLine(float px, float py, float x1, float y1, float x2, float y2, float* outX, float* outY) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float len2 = dx*dx + dy*dy;
+    
+    if (len2 < 0.0001f) {
+        // The line segment is just a point
+        *outX = x1;
+        *outY = y1;
+        return;
+    }
+    
+    // Calculate projection of point onto line
+    float t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    
+    // Clamp t to [0,1] to stay within the line segment
+    t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+    
+    *outX = x1 + t * dx;
+    *outY = y1 + t * dy;
+}
+
+// Find closest point on a rotated rectangle to a given point
+static void closestPointOnRect(float px, float py, const Obstacle* rect, float* outX, float* outY) {
+    // First check if the point is inside the rectangle
+    if (pointInRotatedRect(px, py, rect)) {
+        *outX = px;
+        *outY = py;
+        return;
+    }
+    
+    // Calculate the four corners of the rectangle
+    float halfW = rect->width / 2.0f;
+    float halfH = rect->height / 2.0f;
+    float cosa = cosf(rect->angle);
+    float sina = sinf(rect->angle);
+    
+    // Calculate corner positions (rotated around center)
+    float corners[4][2] = {
+        { rect->cx + (-halfW * cosa - (-halfH) * sina), rect->cy + (-halfW * sina + (-halfH) * cosa) }, // Top-left
+        { rect->cx + (halfW * cosa - (-halfH) * sina), rect->cy + (halfW * sina + (-halfH) * cosa) },   // Top-right
+        { rect->cx + (halfW * cosa - halfH * sina), rect->cy + (halfW * sina + halfH * cosa) },          // Bottom-right
+        { rect->cx + (-halfW * cosa - halfH * sina), rect->cy + (-halfW * sina + halfH * cosa) }         // Bottom-left
+    };
+    
+    // Find the closest point on each edge
+    float closestDist = 1e10f;
+    float cx = 0.0f, cy = 0.0f;
+    
+    for (int i = 0; i < 4; i++) {
+        int next = (i + 1) % 4;
+        float tmpX, tmpY;
+        
+        closestPointOnLine(px, py, corners[i][0], corners[i][1], corners[next][0], corners[next][1], &tmpX, &tmpY);
+        
+        float dist = (tmpX - px) * (tmpX - px) + (tmpY - py) * (tmpY - py);
+        if (dist < closestDist) {
+            closestDist = dist;
+            cx = tmpX;
+            cy = tmpY;
+        }
+    }
+    
+    *outX = cx;
+    *outY = cy;
+}
+
+// Handle collision between a physics object and an obstacle
+static void handleObstacleCollision(PhysicsObject* obj, Obstacle* obstacle) {
+    // First predict where the object would be after the current velocity is applied
+    // This helps catch tunneling for fast-moving objects
+    float predictedX = obj->cx + obj->vx * 0.016f; // Predict one frame ahead at 60fps
+    float predictedY = obj->cy + obj->vy * 0.016f;
+    
+    // Find the closest point on the obstacle to both current and predicted positions
+    float closestX, closestY;
+    float closestPredX, closestPredY;
+    closestPointOnRect(obj->cx, obj->cy, obstacle, &closestX, &closestY);
+    closestPointOnRect(predictedX, predictedY, obstacle, &closestPredX, &closestPredY);
+    
+    // Calculate distance between object center and closest point
+    float dx = obj->cx - closestX;
+    float dy = obj->cy - closestY;
+    float distSquared = dx*dx + dy*dy;
+    
+    // Also check predicted position
+    float predDx = predictedX - closestPredX;
+    float predDy = predictedY - closestPredY;
+    float predDistSquared = predDx*predDx + predDy*predDy;
+    
+    // Set effective radius with a small safety margin to prevent clipping
+    float effectiveRadius = obj->size * 1.1f;
+    
+    // Check if either current or predicted position has a collision
+    if (distSquared < effectiveRadius * effectiveRadius || 
+        predDistSquared < effectiveRadius * effectiveRadius) {
+        
+        // Use the current position for collision response
+        float dist = sqrtf(distSquared);
+        if (dist < 0.0001f) dist = 0.0001f; // Avoid division by zero
+        
+        // Calculate normal vector (from obstacle to object)
+        float nx = dx / dist;
+        float ny = dy / dist;
+        
+        // Calculate relative velocity along normal
+        float velAlongNormal = obj->vx * nx + obj->vy * ny;
+        
+        // Calculate bounce response (even if not moving toward obstacle)
+        // This ensures objects don't get stuck inside obstacles
+        float impulse = -(1.0f + RESTITUTION) * velAlongNormal;
+        
+        // Apply stronger impulse for objects moving toward the obstacle
+        if (velAlongNormal < 0) {
+            impulse *= 1.2f;  // Stronger bounce for incoming objects
+        }
+        
+        // Apply impulse to object velocity
+        obj->vx += impulse * nx;
+        obj->vy += impulse * ny;
+        
+        // Calculate tangent vector
+        float tx = -ny;
+        float ty = nx;
+        
+        // Calculate velocity along tangent
+        float velAlongTangent = obj->vx * tx + obj->vy * ty;
+        
+        // Apply friction impulse along tangent
+        float frictionImpulse = -velAlongTangent * FRICTION;
+        obj->vx += frictionImpulse * tx;
+        obj->vy += frictionImpulse * ty;
+        
+        // Add some random rotation on collision
+        obj->angularVelocity += randomRange(-1.0f, 1.0f);
+        
+        // Move object out of collision with extra safety margin
+        float penetration = effectiveRadius - dist;
+        obj->cx += nx * penetration * 1.2f; // Stronger push to avoid sticking/clipping
+        obj->cy += ny * penetration * 1.2f;
+    }
+}
+
+// Update all physics objects
+void updatePhysics(float dt) {
+    float halfWidth = canvasWidth / 2.0f;
+    float halfHeight = canvasHeight / 2.0f;
+    
+    // First, update positions and handle wall collisions
+    for (int i = 0; i < PHYSICS_COUNT; i++) {
+        if (!objects[i].active) continue;
+        
+        // Apply gravity with scaling factor
+        objects[i].vy -= GRAVITY_ACCELERATION * gravityScale * dt;
+        
+        // Update position
+        objects[i].cx += objects[i].vx * dt;
+        objects[i].cy += objects[i].vy * dt;
+        
+        // Update rotation
+        objects[i].angle += objects[i].angularVelocity * dt;
+        
+        // Handle collisions with ground (bottom)
+        if (objects[i].cy < -halfHeight) {
+            objects[i].cy = -halfHeight;
+            objects[i].vy = -objects[i].vy * RESTITUTION;  // Bounce with energy loss
+            objects[i].vx *= FRICTION;                    // Apply friction
+            
+            // Apply a small random spin on bounce
+            objects[i].angularVelocity += randomRange(-0.5f, 0.5f);
+        }
+        
+        // Handle collisions with ceiling (top)
+        if (objects[i].cy > halfHeight) {
+            objects[i].cy = halfHeight;
+            objects[i].vy = -objects[i].vy * RESTITUTION;  // Bounce with energy loss
+            objects[i].vx *= FRICTION;                    // Apply friction
+        }
+        
+        // Handle collisions with left wall
+        if (objects[i].cx < -halfWidth) {
+            objects[i].cx = -halfWidth;
+            objects[i].vx = -objects[i].vx * RESTITUTION;  // Bounce with energy loss
+            objects[i].vy *= FRICTION;                    // Apply friction
+            
+            // Apply a small random spin on bounce
+            objects[i].angularVelocity += randomRange(-0.5f, 0.5f);
+        }
+        
+        // Handle collisions with right wall
+        if (objects[i].cx > halfWidth) {
+            objects[i].cx = halfWidth;
+            objects[i].vx = -objects[i].vx * RESTITUTION;  // Bounce with energy loss
+            objects[i].vy *= FRICTION;                    // Apply friction
+            
+            // Apply a small random spin on bounce
+            objects[i].angularVelocity += randomRange(-0.5f, 0.5f);
+        }
+        
+        // Handle collisions with obstacles
+        for (int j = 0; j < OBSTACLE_COUNT; j++) {
+            if (obstacles[j].active) {
+                handleObstacleCollision(&objects[i], &obstacles[j]);
+            }
+        }
+        
+        // Add some damping to gradually slow objects down
+        objects[i].vx *= 0.999f;
+        objects[i].vy *= 0.999f;
+        objects[i].angularVelocity *= 0.998f;
+        
+        // Deactivate objects that are nearly stopped and at the bottom
+        if (fabsf(objects[i].vx) < 1.0f && 
+            fabsf(objects[i].vy) < 1.0f && 
+            objects[i].cy < -halfHeight + 2.0f) {
+            
+            // Small chance to deactivate stopped objects
+            if (rand() % 100 < 2) {
+                objects[i].active = false;
+            }
+        }
+    }
+    
+    // Then, check for inter-object collisions
+    // Only compare each pair once (i,j where i < j)
+    for (int i = 0; i < PHYSICS_COUNT - 1; i++) {
+        if (!objects[i].active) continue;
+        
+        for (int j = i + 1; j < PHYSICS_COUNT; j++) {
+            if (!objects[j].active) continue;
+            
+            // Check for collision using circle approximation
+            float dx = objects[i].cx - objects[j].cx;
+            float dy = objects[i].cy - objects[j].cy;
+            float distSquared = dx*dx + dy*dy;
+            
+            float r = objects[i].size + objects[j].size;
+            float rSquared = r*r;
+            
+            // If objects are overlapping
+            if (distSquared < rSquared) {
+                float dist = sqrtf(distSquared);
+                if (dist < 0.0001f) dist = 0.0001f;  // Avoid division by zero
+                
+                // Calculate normal vector (from j to i)
+                float nx = dx / dist;
+                float ny = dy / dist;
+                
+                // Calculate relative velocity
+                float dvx = objects[i].vx - objects[j].vx;
+                float dvy = objects[i].vy - objects[j].vy;
+                
+                // Calculate velocity along normal
+                float velAlongNormal = dvx * nx + dvy * ny;
+                
+                // Only resolve if objects are moving toward each other
+                if (velAlongNormal < 0) {
+                    // Calculate impulse scalar
+                    float impulse = -(1.0f + RESTITUTION) * velAlongNormal;
+                    impulse /= 2.0f;  // Split impulse evenly between objects
+                    
+                    // Apply impulse to object velocities
+                    objects[i].vx += impulse * nx;
+                    objects[i].vy += impulse * ny;
+                    objects[j].vx -= impulse * nx;
+                    objects[j].vy -= impulse * ny;
+                    
+                    // Add friction to perpendicular component
+                    // Calculate tangent vector (perpendicular to normal)
+                    float tx = -ny;
+                    float ty = nx;
+                    
+                    // Calculate velocity along tangent
+                    float velAlongTangent = dvx * tx + dvy * ty;
+                    
+                    // Apply friction impulse along tangent
+                    float frictionImpulse = -velAlongTangent * FRICTION;
+                    frictionImpulse /= 2.0f;  // Split impulse evenly
+                    
+                    objects[i].vx += frictionImpulse * tx;
+                    objects[i].vy += frictionImpulse * ty;
+                    objects[j].vx -= frictionImpulse * tx;
+                    objects[j].vy -= frictionImpulse * ty;
+                }
+                
+                // Add some random rotation change on collision
+                objects[i].angularVelocity += randomRange(-0.5f, 0.5f);
+                objects[j].angularVelocity += randomRange(-0.5f, 0.5f);
+                
+                // Push objects apart to prevent sticking
+                float overlap = (r - dist) * 0.55f;  // Slightly more separation to avoid repeat collisions
+                objects[i].cx += nx * overlap * 0.5f;
+                objects[i].cy += ny * overlap * 0.5f;
+                objects[j].cx -= nx * overlap * 0.5f;
+                objects[j].cy -= ny * overlap * 0.5f;
+            }
+        }
+    }
+}
+
+// Render all physics objects
+void renderPhysics(Canvas* canvas) {
+    // First render the obstacles
+    for (int i = 0; i < OBSTACLE_COUNT; i++) {
+        if (obstacles[i].active) {
+            drawRotatedRectangle(canvas, &obstacles[i]);
+        }
+    }
+    
+    // Then render the physics objects (triangles)
+    for (int i = 0; i < PHYSICS_COUNT; i++) {
+        if (!objects[i].active) continue;
+        
+        // Create a temporary triangle with the physics object properties
+        Triangle t;
+        t.cx = objects[i].cx;
+        t.cy = objects[i].cy;
+        t.size = objects[i].size;
+        t.angle = objects[i].angle;
+        t.color = objects[i].color;
+        
+        // Draw the triangle
+        drawTriangle(canvas, &t);
+    }
+}
+</file>
+
+<file path="src/text.c">
+#include "../include/text.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>  // For getcwd
+
+// Font handle
+static TTF_Font* font = NULL;
+
+bool textInit(const char* fontFilename, int fontSize) {
+    // Check if TTF was initialized
+    if (!TTF_WasInit()) {
+        fprintf(stderr, "SDL_ttf not initialized before textInit()\n");
+        return false;
+    }
+    
+    // Construct the full path to the font file
+    // First try with relative path from current directory
+    char fontPath[256];
+    snprintf(fontPath, sizeof(fontPath), "assets/fonts/%s", fontFilename);
+    
+    // Try to load the font
+    font = TTF_OpenFont(fontPath, fontSize);
+    
+    // If that fails, try with full path
+    if (!font) {
+        fprintf(stderr, "Failed to load font from '%s': %s\n", fontPath, TTF_GetError());
+        // Try with absolute path (assuming executable is in project root)
+        char cwd[256];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {  // getcwd returns NULL on error
+            snprintf(fontPath, sizeof(fontPath), "%s/assets/fonts/%s", cwd, fontFilename);
+            fprintf(stderr, "Trying absolute path: %s\n", fontPath);
+            font = TTF_OpenFont(fontPath, fontSize);
+        }
+    }
+    
+    // Check if font loaded
+    if (!font) {
+        fprintf(stderr, "Failed to load font '%s': %s\n", fontPath, TTF_GetError());
+        return false;
+    }
+    
+    fprintf(stderr, "Font loaded successfully: %s\n", fontPath);
+    return true;
+}
+
+void textDraw(Canvas* canvas, int cx, int cy, const char* text, Color color) {
+    // Safety checks
+    if (!font) {
+        fprintf(stderr, "Error: Font not loaded in textDraw\n");
+        return;
+    }
+    if (!text || text[0] == '\0') {
+        fprintf(stderr, "Error: Empty text passed to textDraw\n");
+        return;
+    }
+    if (!canvas) {
+        fprintf(stderr, "Error: Null canvas passed to textDraw\n");
+        return;
+    }
+    
+    // Use blended rendering for nice antialiased text
+    SDL_Color sdlColor = {color.r, color.g, color.b, 255};
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text, sdlColor);
+    
+    if (!surface) {
+        fprintf(stderr, "Failed to render text: '%s'\n", TTF_GetError());
+        return;
+    }
+    
+    // Calculate text dimensions and position
+    int textWidth = surface->w;
+    int textHeight = surface->h;
+    
+    // Convert from centered coordinates to top-left origin
+    // Our canvas origin is in the center, SDL's surface origin is top-left
+    int x = canvas->width / 2 + cx - textWidth / 2;   // Center text horizontally around cx
+    int y = canvas->height / 2 - cy - textHeight / 2; // And vertically around cy
+    
+    // Check if completely off-screen
+    if (x + textWidth < 0 || y + textHeight < 0 || 
+        x >= canvas->width || y >= canvas->height) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+    
+    // Get format information
+    SDL_PixelFormat* format = surface->format;
+    
+    // Only proceed if surface is in a recognized format
+    if (format->BytesPerPixel != 4) {
+        fprintf(stderr, "Unsupported surface format: %d bytes per pixel\n", format->BytesPerPixel);
+        SDL_FreeSurface(surface);
+        return;
+    }
+    
+    // Access pixel data
+    Uint32* src = (Uint32*)surface->pixels;
+    
+    // Copy pixels to canvas, converting from SDL format to our format
+    for (int sy = 0; sy < textHeight; sy++) {
+        for (int sx = 0; sx < textWidth; sx++) {
+            // Get source pixel in SDL format
+            int srcIndex = sy * (surface->pitch / 4) + sx;
+            Uint32 pixel = src[srcIndex];
+            
+            // Extract RGBA components
+            Uint8 r, g, b, a;
+            SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
+            
+            // Skip fully transparent pixels
+            if (a < 10) continue;
+            
+            // Create a blended color based on alpha
+            // Adjust the alpha scaling to taste
+            Color pixelColor;
+            if (a >= 250) {
+                // Fully opaque - use the original color
+                pixelColor = color;
+            } else {
+                // Alpha-scale the original color
+                float alphaFactor = a / 255.0f;
+                pixelColor.r = (uint8_t)(color.r * alphaFactor);
+                pixelColor.g = (uint8_t)(color.g * alphaFactor);
+                pixelColor.b = (uint8_t)(color.b * alphaFactor);
+            }
+            
+            // Calculate position in canvas coordinates
+            // Convert from top-left origin to centered origin
+            int canvasX = x + sx - canvas->width / 2;
+            int canvasY = canvas->height / 2 - (y + sy);
+            
+            // Put the pixel on the canvas
+            Canvas_PutPixel(canvas, canvasX, canvasY, pixelColor);
+        }
+    }
+    
+    // Clean up
+    SDL_FreeSurface(surface);
+}
+
+void textShutdown(void) {
+    if (font) {
+        TTF_CloseFont(font);
+        font = NULL;
+    }
+}
+</file>
+
+<file path="src/triangle_demo.c">
+#include "../include/triangle_demo.h"
+#include "../include/triangle.h"
+#include "../include/triangle_simd.h"
+#include <stdlib.h>
+#include <time.h>
+#include <math.h>
+#include <stdio.h>
+#include <sys/time.h>
+
+// Ensure we have the declaration for the triangle drawing function
+extern void drawTriangle(Canvas* canvas, const Triangle* t);
+
+// Static array of triangles for the demo
+static Triangle* triangles = NULL;
+
+// SIMD data structure for optimized rendering
+static TriangleDataSIMD simdData;
+
+// Performance timing variables
+static struct timeval lastFrameTime;
+static double lastFrameDuration = 0.0;
+static int frameCounter = 0;
+static double totalFrameTime = 0.0;
+
+// Get current time in seconds
+static double getCurrentTime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
+
+void initRandomTriangles(int w, int h) {
+    // Initialize both the traditional triangle array and the SIMD data structure
+    triangles = malloc(sizeof(*triangles) * (size_t)TRIANGLE_COUNT);
+    triangleDataSIMD_init(&simdData, TRIANGLE_COUNT);
+    
+    srand((unsigned)time(NULL));
+    for (int i = 0; i < TRIANGLE_COUNT; i++) {
+        triangles[i].cx    = ((float)rand()/RAND_MAX)*w  - w/2.0f;
+        triangles[i].cy    = ((float)rand()/RAND_MAX)*h  - h/2.0f;
+        triangles[i].size  = 1 + ((float)rand()/RAND_MAX)*10;
+        triangles[i].color = (Color){
+            (uint8_t)(rand() % 256),
+            (uint8_t)(rand() % 256),
+            (uint8_t)(rand() % 256)
+        };
+        triangles[i].angle = ((float)rand()/RAND_MAX)*2*M_PI;
+        triangles[i].speed = ((float)rand()/RAND_MAX)*2.0f - 1.0f;
+    }
+    
+    // Convert the triangle array to SIMD-friendly SoA format
+    triangleDataSIMD_fromTriangles(&simdData, triangles, TRIANGLE_COUNT);
+    
+    // Initialize timing
+    gettimeofday(&lastFrameTime, NULL);
+    frameCounter = 0;
+    totalFrameTime = 0.0;
+}
+
+void renderRandomTriangles(Canvas* canvas, float dt) {
+    // Start timing this frame
+    double frameStart = getCurrentTime();
+    
+#if defined(USE_AVX2) || defined(USE_SSE2)
+    // SIMD optimized path
+    
+    // Update all triangles and perform frustum culling with SIMD
+    updateAndCullSIMD(&simdData, dt, canvas->width, canvas->height);
+    
+    // Render all visible triangles
+    renderTrianglesSIMD(canvas, &simdData);
+    
+    // Update the original triangle array (just angles for mouse interaction)
+    for (int i = 0; i < TRIANGLE_COUNT; i++) {
+        triangles[i].angle = simdData.angle[i];
+    }
+#else
+    // Scalar fallback path
+    
+    // Canvas dimensions for culling check
+    int canvas_width = canvas->width;
+    int canvas_height = canvas->height;
+    
+    // Create a smaller frustum boundary to make culling visible at the edges
+    // Using 80% of the canvas size to create a visible border effect
+    float frustum_width = canvas_width * 0.8f;
+    float frustum_height = canvas_height * 0.8f;
+    
+    for (int i = 0; i < TRIANGLE_COUNT; i++) {
+        triangles[i].angle += triangles[i].speed * dt;
+        
+        // Simple frustum culling - check if triangle is entirely outside our reduced frustum
+        // Consider the triangle's center position and maximum possible extent (size)
+        float max_extent = triangles[i].size * 1.5f; // Adding a small margin for rotation
+        
+        // If the triangle's bounding box is completely outside the reduced frustum, skip it
+        if (triangles[i].cx + max_extent < -frustum_width/2.0f || 
+            triangles[i].cx - max_extent > frustum_width/2.0f ||
+            triangles[i].cy + max_extent < -frustum_height/2.0f ||
+            triangles[i].cy - max_extent > frustum_height/2.0f) {
+            continue; // Skip this triangle - it's outside the reduced view
+        }
+        
+        // Draw the triangle since it's at least partially visible
+        drawTriangle(canvas, &triangles[i]);
+    }
+#endif
+    
+    // Collect timing data
+    double frameEnd = getCurrentTime();
+    double frameDuration = frameEnd - frameStart;
+    
+    // Update performance metrics
+    lastFrameDuration = frameDuration;
+    totalFrameTime += frameDuration;
+    frameCounter++;
+    
+    // Print performance metrics every 60 frames
+    if (frameCounter % 60 == 0) {
+        double avgFrameTime = totalFrameTime / frameCounter;
+        double fps = 1.0 / avgFrameTime;
+        double trianglesPerSec = TRIANGLE_COUNT * fps;
+        
+#if defined(USE_AVX2)
+        // printf("AVX2 - ");
+#elif defined(USE_SSE2)
+        // printf("SSE2 - ");
+#else
+        // printf("Scalar - ");
+#endif
+        printf("FPS: %.1f, Triangles/sec: %.1fM, Frame time: %.3f ms\n", 
+               fps, trianglesPerSec / 1000000.0, avgFrameTime * 1000.0);
+        
+        // Reset counters for the next sample
+        if (frameCounter >= 120) {
+            frameCounter = 0;
+            totalFrameTime = 0.0;
+        }
+    }
+}
+
+void updateTrianglesWithMouse(int mouseX, int mouseY, int canvasWidth, int canvasHeight, int isPressed) {
+    // Convert mouse coordinates to canvas coordinate system (centered at origin)
+    // Note: Flip the Y coordinate because screen Y increases downward but our canvas Y increases upward
+    float canvasMouseX = mouseX - canvasWidth/2.0f;
+    float canvasMouseY = canvasHeight/2.0f - mouseY; // Flipped Y axis
+    
+    // Interaction strength multiplier (stronger when mouse is pressed)
+    float strengthMultiplier = isPressed ? 2.5f : 1.0f;
+    
+    // Calculate distance and apply force to each triangle
+    for (int i = 0; i < TRIANGLE_COUNT; i++) {
+        // Calculate distance from mouse to triangle
+        float dx = triangles[i].cx - canvasMouseX;
+        float dy = triangles[i].cy - canvasMouseY;
+        float distSquared = dx*dx + dy*dy;
+        
+        // Skip triangles too far from mouse cursor
+        if (distSquared > MOUSE_INFLUENCE_RADIUS * MOUSE_INFLUENCE_RADIUS) {
+            continue;
+        }
+        
+        // Calculate force based on distance (closer = stronger)
+        float distance = sqrtf(distSquared);
+        if (distance < 1.0f) distance = 1.0f; // Avoid division by zero
+        
+        // Direction vector from mouse to triangle (normalized)
+        float dirX = dx / distance;
+        float dirY = dy / distance;
+        
+        // Force decreases with square of distance
+        float force = (MOUSE_FORCE_FACTOR * strengthMultiplier) / (distance * 0.5f);
+        
+        // Apply force to triangle position
+        triangles[i].cx += dirX * force;
+        triangles[i].cy += dirY * force;
+        
+        // Add a slight rotation effect based on mouse movement
+        triangles[i].angle += (dirX + dirY) * 0.01f * strengthMultiplier;
+        
+#if defined(USE_AVX2) || defined(USE_SSE2)
+        // Update SIMD data structure as well
+        simdData.cx[i] = triangles[i].cx;
+        simdData.cy[i] = triangles[i].cy;
+        simdData.angle[i] = triangles[i].angle;
+#endif
+    }
+}
+</file>
+
+<file path="src/triangle_simd.c">
+#include "../include/triangle_simd.h"
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+
+// Memory alignment for SIMD operations
+#define ALIGN_SIZE 32
+
+// Helper to allocate aligned memory for SIMD operations
+static void* aligned_malloc(size_t size) {
+#if defined(__AVX2__) || defined(__SSE2__)
+    return _mm_malloc(size, ALIGN_SIZE);
+#else
+    return malloc(size);
+#endif
+}
+
+// Helper to free aligned memory
+static void aligned_free(void* ptr) {
+#if defined(__AVX2__) || defined(__SSE2__)
+    _mm_free(ptr);
+#else
+    free(ptr);
+#endif
+}
+
+// Initialize the SIMD triangle data structure
+void triangleDataSIMD_init(TriangleDataSIMD* data, int capacity) {
+    // Round up capacity to nearest SIMD_LANES multiple
+    int alignedCapacity = ((capacity + SIMD_LANES - 1) / SIMD_LANES) * SIMD_LANES;
+    
+    data->capacity = alignedCapacity;
+    data->count = 0;
+    
+    // Allocate aligned memory for all arrays
+    data->cx = (float*)aligned_malloc(alignedCapacity * sizeof(float));
+    data->cy = (float*)aligned_malloc(alignedCapacity * sizeof(float));
+    data->size = (float*)aligned_malloc(alignedCapacity * sizeof(float));
+    data->angle = (float*)aligned_malloc(alignedCapacity * sizeof(float));
+    data->speed = (float*)aligned_malloc(alignedCapacity * sizeof(float));
+    data->color = (Color*)aligned_malloc(alignedCapacity * sizeof(Color));
+    data->visible = (bool*)aligned_malloc(alignedCapacity * sizeof(bool));
+    
+    // Zero out the memory
+    memset(data->cx, 0, alignedCapacity * sizeof(float));
+    memset(data->cy, 0, alignedCapacity * sizeof(float));
+    memset(data->size, 0, alignedCapacity * sizeof(float));
+    memset(data->angle, 0, alignedCapacity * sizeof(float));
+    memset(data->speed, 0, alignedCapacity * sizeof(float));
+    memset(data->color, 0, alignedCapacity * sizeof(Color));
+    memset(data->visible, 0, alignedCapacity * sizeof(bool));
+}
+
+// Free the SIMD triangle data
+void triangleDataSIMD_free(TriangleDataSIMD* data) {
+    aligned_free(data->cx);
+    aligned_free(data->cy);
+    aligned_free(data->size);
+    aligned_free(data->angle);
+    aligned_free(data->speed);
+    aligned_free(data->color);
+    aligned_free(data->visible);
+    
+    data->cx = NULL;
+    data->cy = NULL;
+    data->size = NULL;
+    data->angle = NULL;
+    data->speed = NULL;
+    data->color = NULL;
+    data->visible = NULL;
+    data->capacity = 0;
+    data->count = 0;
+}
+
+// Convert AoS triangle array to SoA format for SIMD processing
+void triangleDataSIMD_fromTriangles(TriangleDataSIMD* data, const Triangle* triangles, int count) {
+    if (count > data->capacity) {
+        fprintf(stderr, "Error: Triangle count exceeds SIMD data capacity\n");
+        return;
+    }
+    
+    // Copy triangle data into SoA format
+    for (int i = 0; i < count; i++) {
+        data->cx[i] = triangles[i].cx;
+        data->cy[i] = triangles[i].cy;
+        data->size[i] = triangles[i].size;
+        data->angle[i] = triangles[i].angle;
+        data->speed[i] = triangles[i].speed;
+        data->color[i] = triangles[i].color;
+        data->visible[i] = true; // Initially all visible
+    }
+    
+    // Zero out any remaining elements in the arrays
+    if (count < data->capacity) {
+        int remainingElements = data->capacity - count;
+        memset(&data->cx[count], 0, remainingElements * sizeof(float));
+        memset(&data->cy[count], 0, remainingElements * sizeof(float));
+        memset(&data->size[count], 0, remainingElements * sizeof(float));
+        memset(&data->angle[count], 0, remainingElements * sizeof(float));
+        memset(&data->speed[count], 0, remainingElements * sizeof(float));
+        memset(&data->color[count], 0, remainingElements * sizeof(Color));
+        memset(&data->visible[count], 0, remainingElements * sizeof(bool));
+    }
+    
+    data->count = count;
+}
+
+#if defined(__AVX2__)
+// AVX2 implementation (8 floats at once)
+void updateAndCullSIMD(TriangleDataSIMD* data, float dt, int canvasWidth, int canvasHeight) {
+    // Create smaller frustum for visible culling effect (80% of canvas)
+    float frustum_width = canvasWidth * 0.8f;
+    float frustum_height = canvasHeight * 0.8f;
+    
+    // Constants for SIMD processing
+    __m256 dt_vec = _mm256_set1_ps(dt);
+    __m256 frustum_w_half = _mm256_set1_ps(frustum_width / 2.0f);
+    __m256 frustum_h_half = _mm256_set1_ps(frustum_height / 2.0f);
+    __m256 zero = _mm256_setzero_ps();
+    __m256 margin = _mm256_set1_ps(1.5f);  // Extra margin for rotation
+    
+    // Process triangles in groups of 8 (AVX2 width)
+    for (int i = 0; i < data->count; i += 8) {
+        // Load 8 angles and 8 speeds
+        __m256 angle_vec = _mm256_load_ps(&data->angle[i]);
+        __m256 speed_vec = _mm256_load_ps(&data->speed[i]);
+        __m256 cx_vec = _mm256_load_ps(&data->cx[i]);
+        __m256 cy_vec = _mm256_load_ps(&data->cy[i]);
+        __m256 size_vec = _mm256_load_ps(&data->size[i]);
+        
+        // Update angles: angle += speed * dt
+        angle_vec = _mm256_add_ps(angle_vec, _mm256_mul_ps(speed_vec, dt_vec));
+        _mm256_store_ps(&data->angle[i], angle_vec);
+        
+        // Calculate max extent for each triangle (size * margin)
+        __m256 extent_vec = _mm256_mul_ps(size_vec, margin);
+        
+        // Calculate bounds for culling
+        __m256 min_x = _mm256_sub_ps(cx_vec, extent_vec);
+        __m256 max_x = _mm256_add_ps(cx_vec, extent_vec);
+        __m256 min_y = _mm256_sub_ps(cy_vec, extent_vec);
+        __m256 max_y = _mm256_add_ps(cy_vec, extent_vec);
+        
+        // Check if triangles are outside the frustum
+        __m256 cmp1 = _mm256_cmp_ps(max_x, _mm256_sub_ps(zero, frustum_w_half), _CMP_LT_OQ); // max_x < -frustum_w_half
+        __m256 cmp2 = _mm256_cmp_ps(min_x, frustum_w_half, _CMP_GT_OQ);                     // min_x > frustum_w_half
+        __m256 cmp3 = _mm256_cmp_ps(max_y, _mm256_sub_ps(zero, frustum_h_half), _CMP_LT_OQ); // max_y < -frustum_h_half
+        __m256 cmp4 = _mm256_cmp_ps(min_y, frustum_h_half, _CMP_GT_OQ);                     // min_y > frustum_h_half
+        
+        // Combine all conditions with OR
+        __m256 outside = _mm256_or_ps(_mm256_or_ps(cmp1, cmp2), _mm256_or_ps(cmp3, cmp4));
+        
+        // Convert the mask to integers (0xFFFFFFFF for true, 0 for false)
+        int outside_mask = _mm256_movemask_ps(outside);
+        
+        // Set visibility flags (invert mask since outside=1 means invisible)
+        for (int j = 0; j < 8 && i + j < data->count; j++) {
+            data->visible[i + j] = !((outside_mask >> j) & 1);
+        }
+    }
+}
+
+#elif defined(__SSE2__)
+// SSE2 implementation (4 floats at once)
+void updateAndCullSIMD(TriangleDataSIMD* data, float dt, int canvasWidth, int canvasHeight) {
+    // Create smaller frustum for visible culling effect (80% of canvas)
+    float frustum_width = canvasWidth * 0.8f;
+    float frustum_height = canvasHeight * 0.8f;
+    
+    // Constants for SIMD processing
+    __m128 dt_vec = _mm_set1_ps(dt);
+    __m128 frustum_w_half = _mm_set1_ps(frustum_width / 2.0f);
+    __m128 frustum_h_half = _mm_set1_ps(frustum_height / 2.0f);
+    __m128 zero = _mm_setzero_ps();
+    __m128 margin = _mm_set1_ps(1.5f);  // Extra margin for rotation
+    
+    // Process triangles in groups of 4 (SSE2 width)
+    for (int i = 0; i < data->count; i += 4) {
+        // Load 4 angles and 4 speeds
+        __m128 angle_vec = _mm_load_ps(&data->angle[i]);
+        __m128 speed_vec = _mm_load_ps(&data->speed[i]);
+        __m128 cx_vec = _mm_load_ps(&data->cx[i]);
+        __m128 cy_vec = _mm_load_ps(&data->cy[i]);
+        __m128 size_vec = _mm_load_ps(&data->size[i]);
+        
+        // Update angles: angle += speed * dt
+        angle_vec = _mm_add_ps(angle_vec, _mm_mul_ps(speed_vec, dt_vec));
+        _mm_store_ps(&data->angle[i], angle_vec);
+        
+        // Calculate max extent for each triangle (size * margin)
+        __m128 extent_vec = _mm_mul_ps(size_vec, margin);
+        
+        // Calculate bounds for culling
+        __m128 min_x = _mm_sub_ps(cx_vec, extent_vec);
+        __m128 max_x = _mm_add_ps(cx_vec, extent_vec);
+        __m128 min_y = _mm_sub_ps(cy_vec, extent_vec);
+        __m128 max_y = _mm_add_ps(cy_vec, extent_vec);
+        
+        // Check if triangles are outside the frustum
+        __m128 cmp1 = _mm_cmplt_ps(max_x, _mm_sub_ps(zero, frustum_w_half)); // max_x < -frustum_w_half
+        __m128 cmp2 = _mm_cmpgt_ps(min_x, frustum_w_half);                  // min_x > frustum_w_half
+        __m128 cmp3 = _mm_cmplt_ps(max_y, _mm_sub_ps(zero, frustum_h_half)); // max_y < -frustum_h_half
+        __m128 cmp4 = _mm_cmpgt_ps(min_y, frustum_h_half);                  // min_y > frustum_h_half
+        
+        // Combine all conditions with OR
+        __m128 outside = _mm_or_ps(_mm_or_ps(cmp1, cmp2), _mm_or_ps(cmp3, cmp4));
+        
+        // Convert the mask to integers (0xFFFFFFFF for true, 0 for false)
+        int outside_mask = _mm_movemask_ps(outside);
+        
+        // Set visibility flags (invert mask since outside=1 means invisible)
+        for (int j = 0; j < 4 && i + j < data->count; j++) {
+            data->visible[i + j] = !((outside_mask >> j) & 1);
+        }
+    }
+}
+
+#else
+// Scalar fallback implementation
+void updateAndCullSIMD(TriangleDataSIMD* data, float dt, int canvasWidth, int canvasHeight) {
+    // Create smaller frustum for visible culling effect (80% of canvas)
+    float frustum_width = canvasWidth * 0.8f;
+    float frustum_height = canvasHeight * 0.8f;
+    float frustum_w_half = frustum_width / 2.0f;
+    float frustum_h_half = frustum_height / 2.0f;
+    
+    for (int i = 0; i < data->count; i++) {
+        // Update angle
+        data->angle[i] += data->speed[i] * dt;
+        
+        // Calculate max extent
+        float max_extent = data->size[i] * 1.5f;
+        
+        // Check if triangle is outside the frustum
+        if (data->cx[i] + max_extent < -frustum_w_half || 
+            data->cx[i] - max_extent > frustum_w_half ||
+            data->cy[i] + max_extent < -frustum_h_half ||
+            data->cy[i] - max_extent > frustum_h_half) {
+            data->visible[i] = false;
+        } else {
+            data->visible[i] = true;
+        }
+    }
+}
+#endif
+
+// drawLine is now included from triangle.h
+
+// Helper function to calculate vertices for a single triangle
+static void calcTriangleVertices(float cx, float cy, float size, float angle, int vx[3], int vy[3]) {
+    // Local base-triangle pointing up
+    float bx[3] = { 0, size, -size };
+    float by[3] = { -size, size, size };
+    float c = cosf(angle);
+    float s = sinf(angle);
+    
+    for (int i = 0; i < 3; i++) {
+        float rx = bx[i]*c - by[i]*s;
+        float ry = bx[i]*s + by[i]*c;
+        vx[i] = (int)(cx + rx);
+        vy[i] = (int)(cy + ry);
+    }
+}
+
+// Render all visible triangles using SIMD processing
+void renderTrianglesSIMD(Canvas* canvas, TriangleDataSIMD* data) {
+    for (int i = 0; i < data->count; i++) {
+        if (data->visible[i]) {
+            int vx[3], vy[3];
+            calcTriangleVertices(data->cx[i], data->cy[i], data->size[i], data->angle[i], vx, vy);
+            
+            // Draw the three edges
+            drawLine(canvas, vx[0], vy[0], vx[1], vy[1], data->color[i]);
+            drawLine(canvas, vx[1], vy[1], vx[2], vy[2], data->color[i]);
+            drawLine(canvas, vx[2], vy[2], vx[0], vy[0], data->color[i]);
+        }
+    }
+}
+
+#if defined(__AVX2__)
+// AVX2 implementation of batch triangle rendering
+void drawTrianglesBatchSIMD(Canvas* canvas, const float* cx, const float* cy, 
+                          const float* size, const float* angle, const Color* color,
+                          int batchSize) {
+    // Ensure batchSize <= 8
+    if (batchSize > 8) batchSize = 8;
+    
+    // For simplicity, we're calculating vertices with SIMD but still drawing with scalar code
+    // A full implementation would vectorize the line drawing as well
+    
+    // Base triangle template (common for all triangles)
+    __m256 base_x0 = _mm256_set1_ps(0.0f);
+    __m256 base_x1 = _mm256_set1_ps(1.0f);
+    __m256 base_x2 = _mm256_set1_ps(-1.0f);
+    __m256 base_y0 = _mm256_set1_ps(-1.0f);
+    __m256 base_y1 = _mm256_set1_ps(1.0f);
+    __m256 base_y2 = _mm256_set1_ps(1.0f);
+    
+    // Load 8 positions, sizes and angles
+    __m256 cx_vec = _mm256_loadu_ps(cx);
+    __m256 cy_vec = _mm256_loadu_ps(cy);
+    __m256 size_vec = _mm256_loadu_ps(size);
+    
+    // Calculate sin/cos for each angle
+    // Note: In a production system, you'd use a fast SIMD sin/cos approximation
+    // Here we'll compute them separately for simplicity
+    float c_vals[8], s_vals[8];
+    for (int i = 0; i < batchSize; i++) {
+        c_vals[i] = cosf(angle[i]);
+        s_vals[i] = sinf(angle[i]);
+    }
+    __m256 c_vec = _mm256_loadu_ps(c_vals);
+    __m256 s_vec = _mm256_loadu_ps(s_vals);
+    
+    // Scale the base triangle by size
+    __m256 bx0 = _mm256_mul_ps(base_x0, size_vec);
+    __m256 by0 = _mm256_mul_ps(base_y0, size_vec);
+    __m256 bx1 = _mm256_mul_ps(base_x1, size_vec);
+    __m256 by1 = _mm256_mul_ps(base_y1, size_vec);
+    __m256 bx2 = _mm256_mul_ps(base_x2, size_vec);
+    __m256 by2 = _mm256_mul_ps(base_y2, size_vec);
+    
+    // Rotate and translate all vertices for vertex 0
+    __m256 rx0 = _mm256_sub_ps(_mm256_mul_ps(bx0, c_vec), _mm256_mul_ps(by0, s_vec));
+    __m256 ry0 = _mm256_add_ps(_mm256_mul_ps(bx0, s_vec), _mm256_mul_ps(by0, c_vec));
+    __m256 vx0 = _mm256_add_ps(cx_vec, rx0);
+    __m256 vy0 = _mm256_add_ps(cy_vec, ry0);
+    
+    // Rotate and translate all vertices for vertex 1
+    __m256 rx1 = _mm256_sub_ps(_mm256_mul_ps(bx1, c_vec), _mm256_mul_ps(by1, s_vec));
+    __m256 ry1 = _mm256_add_ps(_mm256_mul_ps(bx1, s_vec), _mm256_mul_ps(by1, c_vec));
+    __m256 vx1 = _mm256_add_ps(cx_vec, rx1);
+    __m256 vy1 = _mm256_add_ps(cy_vec, ry1);
+    
+    // Rotate and translate all vertices for vertex 2
+    __m256 rx2 = _mm256_sub_ps(_mm256_mul_ps(bx2, c_vec), _mm256_mul_ps(by2, s_vec));
+    __m256 ry2 = _mm256_add_ps(_mm256_mul_ps(bx2, s_vec), _mm256_mul_ps(by2, c_vec));
+    __m256 vx2 = _mm256_add_ps(cx_vec, rx2);
+    __m256 vy2 = _mm256_add_ps(cy_vec, ry2);
+    
+    // Store results
+    float vx0_arr[8], vy0_arr[8], vx1_arr[8], vy1_arr[8], vx2_arr[8], vy2_arr[8];
+    _mm256_storeu_ps(vx0_arr, vx0);
+    _mm256_storeu_ps(vy0_arr, vy0);
+    _mm256_storeu_ps(vx1_arr, vx1);
+    _mm256_storeu_ps(vy1_arr, vy1);
+    _mm256_storeu_ps(vx2_arr, vx2);
+    _mm256_storeu_ps(vy2_arr, vy2);
+    
+    // Draw all triangles using the calculated vertices
+    for (int i = 0; i < batchSize; i++) {
+        drawLine(canvas, (int)vx0_arr[i], (int)vy0_arr[i], (int)vx1_arr[i], (int)vy1_arr[i], color[i]);
+        drawLine(canvas, (int)vx1_arr[i], (int)vy1_arr[i], (int)vx2_arr[i], (int)vy2_arr[i], color[i]);
+        drawLine(canvas, (int)vx2_arr[i], (int)vy2_arr[i], (int)vx0_arr[i], (int)vy0_arr[i], color[i]);
+    }
+}
+
+#elif defined(__SSE2__)
+// SSE2 implementation of batch triangle rendering
+void drawTrianglesBatchSIMD(Canvas* canvas, const float* cx, const float* cy, 
+                          const float* size, const float* angle, const Color* color,
+                          int batchSize) {
+    // Ensure batchSize <= 4
+    if (batchSize > 4) batchSize = 4;
+    
+    // Base triangle template (common for all triangles)
+    __m128 base_x0 = _mm_set1_ps(0.0f);
+    __m128 base_x1 = _mm_set1_ps(1.0f);
+    __m128 base_x2 = _mm_set1_ps(-1.0f);
+    __m128 base_y0 = _mm_set1_ps(-1.0f);
+    __m128 base_y1 = _mm_set1_ps(1.0f);
+    __m128 base_y2 = _mm_set1_ps(1.0f);
+    
+    // Load 4 positions, sizes and angles
+    __m128 cx_vec = _mm_loadu_ps(cx);
+    __m128 cy_vec = _mm_loadu_ps(cy);
+    __m128 size_vec = _mm_loadu_ps(size);
+    
+    // Calculate sin/cos for each angle
+    float c_vals[4], s_vals[4];
+    for (int i = 0; i < batchSize; i++) {
+        c_vals[i] = cosf(angle[i]);
+        s_vals[i] = sinf(angle[i]);
+    }
+    __m128 c_vec = _mm_loadu_ps(c_vals);
+    __m128 s_vec = _mm_loadu_ps(s_vals);
+    
+    // Scale the base triangle by size
+    __m128 bx0 = _mm_mul_ps(base_x0, size_vec);
+    __m128 by0 = _mm_mul_ps(base_y0, size_vec);
+    __m128 bx1 = _mm_mul_ps(base_x1, size_vec);
+    __m128 by1 = _mm_mul_ps(base_y1, size_vec);
+    __m128 bx2 = _mm_mul_ps(base_x2, size_vec);
+    __m128 by2 = _mm_mul_ps(base_y2, size_vec);
+    
+    // Rotate and translate all vertices for vertex 0
+    __m128 rx0 = _mm_sub_ps(_mm_mul_ps(bx0, c_vec), _mm_mul_ps(by0, s_vec));
+    __m128 ry0 = _mm_add_ps(_mm_mul_ps(bx0, s_vec), _mm_mul_ps(by0, c_vec));
+    __m128 vx0 = _mm_add_ps(cx_vec, rx0);
+    __m128 vy0 = _mm_add_ps(cy_vec, ry0);
+    
+    // Rotate and translate all vertices for vertex 1
+    __m128 rx1 = _mm_sub_ps(_mm_mul_ps(bx1, c_vec), _mm_mul_ps(by1, s_vec));
+    __m128 ry1 = _mm_add_ps(_mm_mul_ps(bx1, s_vec), _mm_mul_ps(by1, c_vec));
+    __m128 vx1 = _mm_add_ps(cx_vec, rx1);
+    __m128 vy1 = _mm_add_ps(cy_vec, ry1);
+    
+    // Rotate and translate all vertices for vertex 2
+    __m128 rx2 = _mm_sub_ps(_mm_mul_ps(bx2, c_vec), _mm_mul_ps(by2, s_vec));
+    __m128 ry2 = _mm_add_ps(_mm_mul_ps(bx2, s_vec), _mm_mul_ps(by2, c_vec));
+    __m128 vx2 = _mm_add_ps(cx_vec, rx2);
+    __m128 vy2 = _mm_add_ps(cy_vec, ry2);
+    
+    // Store results
+    float vx0_arr[4], vy0_arr[4], vx1_arr[4], vy1_arr[4], vx2_arr[4], vy2_arr[4];
+    _mm_storeu_ps(vx0_arr, vx0);
+    _mm_storeu_ps(vy0_arr, vy0);
+    _mm_storeu_ps(vx1_arr, vx1);
+    _mm_storeu_ps(vy1_arr, vy1);
+    _mm_storeu_ps(vx2_arr, vx2);
+    _mm_storeu_ps(vy2_arr, vy2);
+    
+    // Draw all triangles using the calculated vertices
+    for (int i = 0; i < batchSize; i++) {
+        drawLine(canvas, (int)vx0_arr[i], (int)vy0_arr[i], (int)vx1_arr[i], (int)vy1_arr[i], color[i]);
+        drawLine(canvas, (int)vx1_arr[i], (int)vy1_arr[i], (int)vx2_arr[i], (int)vy2_arr[i], color[i]);
+        drawLine(canvas, (int)vx2_arr[i], (int)vy2_arr[i], (int)vx0_arr[i], (int)vy0_arr[i], color[i]);
+    }
+}
+
+#else
+// Scalar fallback implementation
+void drawTrianglesBatchSIMD(Canvas* canvas, const float* cx, const float* cy, 
+                          const float* size, const float* angle, const Color* color,
+                          int batchSize) {
+    for (int i = 0; i < batchSize; i++) {
+        int vx[3], vy[3];
+        calcTriangleVertices(cx[i], cy[i], size[i], angle[i], vx, vy);
+        
+        drawLine(canvas, vx[0], vy[0], vx[1], vy[1], color[i]);
+        drawLine(canvas, vx[1], vy[1], vx[2], vy[2], color[i]);
+        drawLine(canvas, vx[2], vy[2], vx[0], vy[0], color[i]);
+    }
+}
+#endif
+</file>
+
+<file path="src/triangle.c">
+#include "../include/triangle.h"
+#include <stdlib.h>
+#include <math.h>
+#include <stdbool.h>
+
+// Function declaration for our wireframe line drawing helper
+void drawLine(Canvas* canvas,
+             int x0, int y0, int x1, int y1,
+             Color color);
+
+void drawLine(Canvas* canvas,
+             int x0, int y0, int x1, int y1,
+             Color color)
+{
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy, e2;
+    while (true) {
+        Canvas_PutPixel(canvas, x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2*err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
+void drawTriangle(Canvas* canvas, const Triangle* t)
+{
+    // local base-triangle pointing up
+    float bx[3] = { 0,  t->size, -t->size };
+    float by[3] = { -t->size,  t->size,  t->size };
+    float c = cosf(t->angle), s = sinf(t->angle);
+
+    int vx[3], vy[3];
+    for (int i = 0; i < 3; i++) {
+        float rx = bx[i]*c - by[i]*s;
+        float ry = bx[i]*s + by[i]*c;
+        vx[i] = (int)(t->cx + rx);
+        vy[i] = (int)(t->cy + ry);
+    }
+
+    // draw the three edges
+    drawLine(canvas, vx[0], vy[0], vx[1], vy[1], t->color);
+    drawLine(canvas, vx[1], vy[1], vx[2], vy[2], t->color);
+    drawLine(canvas, vx[2], vy[2], vx[0], vy[0], t->color);
+}
+</file>
+
+<file path="Makefile">
+# Use clang (or change to gcc)
+CC       := clang
+
+# SIMD options (set with make SIMD=[option])
+# - none: No SIMD instructions
+# - sse2: Use SSE2 instructions (most Intel/AMD processors)
+# - avx2: Use AVX2 instructions (newer Intel/AMD processors)
+SIMD     ?= none
+
+# Debug options (set with make DEBUG=1)
+# - 0: No debug symbols, optimized build
+# - 1: Include debug symbols
+DEBUG    ?= 0
+
+# Base flags
+CFLAGS_BASE := -Wall -Wextra -Werror -std=c11 -Iinclude -O2
+
+# Add debug flags if DEBUG=1
+ifeq ($(DEBUG),1)
+  CFLAGS_BASE += -g -DDEBUG
+endif
+
+# SIMD flags based on choice
+ifeq ($(SIMD),avx2)
+  CFLAGS := $(CFLAGS_BASE) -mavx2 -DUSE_AVX2
+  SIMD_SUFFIX := _avx2
+else ifeq ($(SIMD),sse2)
+  CFLAGS := $(CFLAGS_BASE) -msse2 -DUSE_SSE2
+  SIMD_SUFFIX := _sse2
+else
+  CFLAGS := $(CFLAGS_BASE)
+  SIMD_SUFFIX := 
+endif
+
+LDFLAGS  := -lSDL2 -lSDL2_ttf -lm -lassimp -lpthread -framework Accelerate
+
+SRC_DIR  := src
+OBJ_DIR  := build
+TARGET   := renderer$(SIMD_SUFFIX)
+
+# Find all .c files in src/
+SRCS     := $(wildcard $(SRC_DIR)/*.c)
+# Map src/foo.c -> build/foo.o
+OBJS     := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
+
+.PHONY: all clean debug 4x 8x run-4x run-8x
+
+all: $(TARGET)
+
+# Convenient target for debug build
+debug:
+	$(MAKE) DEBUG=1
+
+# Convenient targets for SSE2 (4-wide SIMD) and AVX2 (8-wide SIMD)
+4x:
+	$(MAKE) SIMD=sse2
+
+8x:
+	$(MAKE) SIMD=avx2
+
+run-4x: 4x
+	./renderer_sse2
+
+run-8x: 8x
+	./renderer_avx2
+
+# Link step
+$(TARGET): $(OBJS)
+	@echo "Linking $@"
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Compile step: build/foo.o from src/foo.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+	@echo "Compiling $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Ensure the build directory exists
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+run: $(TARGET)
+	./$(TARGET)
+
+clean:
+	rm -rf $(OBJ_DIR) $(TARGET)
+</file>
+
+<file path="NOTES.md">
+\*\* Use GPU-accelerated rendering instead of CPU-based line drawing:
+Replace the software rendering with direct OpenGL or SDL's hardware accelerated primitive rendering
+This would be significantly faster for 50,000+ triangles
+
+** Batch rendering:
+Group triangles together and render them in batches
+This reduces API calls and improves performance
+** Frustum culling:
+Only render triangles that are visible in the current viewport
+Skip triangles that are off-screen
+** Level of detail (LOD):
+Render fewer/simpler triangles when they're smaller or farther away
+Full detail only for close-up triangles
+** Implement spatial partitioning:
+Organize triangles in a spatial data structure like a quadtree
+Only process triangles in visible regions
+** SIMD instructions:
+Use SIMD (Single Instruction Multiple Data) to process multiple triangles in parallel
+This would require some restructuring of your data for better memory alignment
+** Multi-threading:
+Distribute rendering across multiple CPU cores
+Could divide the triangle array into chunks processed by different threads
+
+Designing a clean, flexible sprite/spritesheet API—especially one that supports animations—means balancing ease of use, performance, and extensibility. Below is a high-level sketch of what such an API might look like, organized into **Core Concepts**, **Key Features**, **Example Usage**, and **Best Practices**.
+
+---
+
+## Core Concepts
+
+1. **SpriteSheet**
+
+   - Loads one (or more) texture atlases plus accompanying metadata (JSON, XML, etc.).
+   - Knows how to extract individual frames (rectangles) by name or index.
+
+2. **Frame**
+
+   - Represents a single sub-image: its source rectangle, trimmed size, pivot/origin point.
+
+3. **Animation**
+
+   - A named sequence of frames with per-frame durations.
+   - Configurable looping modes (loop, ping-pong, once, reverse).
+
+4. **Sprite**
+
+   - Holds a reference to a `SpriteSheet` and a current `Animation`.
+   - Exposes control methods (play, pause, stop, gotoFrame, etc.).
+   - Knows how to update its internal timer and draw itself.
+
+5. **Animator** (optional)
+
+   - A higher-level controller for sequencing multiple `Sprite` animations or blending between them.
+
+---
+
+## Key Features
+
+- **Metadata-Driven**
+  Load frame definitions and animation sequences from a standard JSON schema:
+
+  ```jsonc
+  {
+    "frames": {
+      "walk_0":  { "x":0,   "y":0,  "w":32, "h":48, "origin": [16,48] },
+      "walk_1":  { "x":32,  "y":0,  "w":32, "h":48, "origin": [16,48] },
+      ...
+    },
+    "animations": {
+      "walk": { "frames": ["walk_0","walk_1","walk_2","walk_1"], "durations": [0.1,0.1,0.1,0.1], "mode":"pingpong" },
+      "attack": { "frames": ["atk_0","atk_1","atk_2"], "durations": [0.05,0.05,0.1], "mode":"once" }
+    }
+  }
+  ```
+
+- **Simple Load & Retrieval**
+
+  ```js
+  const sheet = await SpriteSheet.load("assets/hero.png", "assets/hero.json");
+  ```
+
+- **Dynamic Animation Creation**
+
+  ```js
+  // programmatic
+  const jumpAnim = sheet.createAnimation(
+  	"jump",
+  	["jump_0", "jump_1", "jump_2"],
+  	0.08,
+  	{ loop: false }
+  );
+  ```
+
+- **Playback Control**
+
+  ```js
+  sprite.play("walk");
+  sprite.pause();
+  sprite.stop();
+  sprite.gotoFrame(2);
+  ```
+
+- **Frame Callbacks / Events**
+
+  ```js
+  sprite.onFrame(1, () => {
+  	/* spawn sound */
+  });
+  sprite.onAnimationEnd(() => {
+  	/* switch to idle */
+  });
+  ```
+
+- **Transform & Rendering Options**
+
+  - Position, rotation, scale, color tint
+  - Flipping (horizontal/vertical)
+  - Custom shaders or blend modes
+
+  ```js
+  sprite.draw(ctx, x, y, {
+  	rotation: Math.PI / 4,
+  	scaleX: -1, // flip
+  	tint: { r: 1, g: 0.8, b: 0.8 },
+  });
+  ```
+
+- **Batching / Atlas Optimization**
+
+  - Group multiple sprites from the same sheet into one draw call.
+  - Auto-upload of texture to GPU when first used.
+
+- **Resource Management**
+
+  - Reference counting for shared sheets.
+  - Unload idle atlases.
+
+---
+
+## Example Usage
+
+```js
+// 1. Load assets
+const heroSheet = await SpriteSheet.load("hero.png", "hero.json");
+const enemySheet = await SpriteSheet.load("enemy.png", "enemy.json");
+
+// 2. Create sprites
+const hero = new Sprite(heroSheet, "idle"); // starts in "idle" animation
+const goblin = new Sprite(enemySheet, "walk");
+
+// 3. Register events
+hero.onAnimationEnd(() => hero.play("idle"));
+hero.onFrame(3, () => playSound("hero_step.wav"));
+
+// 4. Game loop
+function gameLoop(dt) {
+	hero.update(dt);
+	goblin.update(dt);
+
+	// Draw in layers
+	renderer.clear();
+	renderer.draw(hero, 100, 200);
+	renderer.draw(goblin, 300, 200);
+}
+```
+
+---
+
+## Best Practices & Extensions
+
+- **Data-First Approach**
+  Keep all frame and animation data external (JSON/XML). Let artists update metadata without touching code.
+
+- **Immutable Frames**
+  Once loaded, `Frame` objects should be read-only to avoid state bugs.
+
+- **Lean Animation Class**
+  Separate timing logic from rendering. Animation should simply produce “current frame index” for a given elapsed time.
+
+- **Pooling & Reuse**
+  Avoid `new`/`delete` per frame. Recycle `Sprite` instances or use pooling for frequent spawns.
+
+- **Editor Integration**
+  Provide a small tool or script to generate the JSON metadata from common sprite editors (TexturePacker, ShoeBox, etc.).
+
+- **Extensible Loop Modes**
+  Aside from standard modes, allow custom interpolation functions—e.g., reverse once, staggered start, random pick.
+
+- **Hierarchical Sprites**
+  Support “composite” sprites (e.g., a character made of body + weapon layers), each with independent animations.
+
+- **Integration Hooks**
+  Expose low-level hooks for embedding in larger rendering pipelines or engines (e.g., Unity, Godot, or custom engines).
+</file>
+
+<file path="pid.txt">
+44954
+</file>
+
+<file path="README.md">
+# Tlacuilolli Triangle Renderer
+
+A high-performance triangle renderer built with C and SDL2.
+
+## Features
+
+- Fast triangle rendering with frustum culling
+- Multiple demo modes (Triangle Demo, Explosion Demo, Physics Demo, Combined Demo)
+- Physics simulation with:
+  - Gravity (toggleable between 1.0x, 0.5x, and 0.0x)
+  - Object collisions
+  - Projectile firing
+  - Jump functionality
+- Double-buffering implemented in Canvas; draws into backBuffer and swaps each frame
+
+## Controls
+
+- Left-click: Create explosion or fire projectile (depends on mode)
+- SPACE: Fire a projectile (in physics demo)
+- G: Toggle gravity (1.0x, 0.5x, 0.0x)
+- J: Make all objects jump simultaneously
+- Keys 1-4: Switch between demo modes:
+  - 1: Triangle demo only
+  - 2: Explosion demo only
+  - 3: Physics demo
+  - 4: Combined demo
+- ESC: Exit
+
+## Building
+
+Requires SDL2 development libraries.
+
+```bash
+make
+```
+
+## Running
+
+```bash
+./tlacuilolli
+```
+
+## Performance Optimizations
+
+- Frustum culling for efficient triangle rendering
+- Double-buffering to prevent GPU stalls during texture uploads
+</file>
+
+<file path="TODO.md">
+# Tlacuilolli Graphics Engine TODO List
+
+## Future Enhancements
+
+### 1. Particle System Layer
+
+Implement a particle system layer that takes advantage of our new layer architecture:
+
+- [ ] Create a basic Particle struct with:
+  - Position (x, y)
+  - Velocity (vx, vy)
+  - Color
+  - Size
+  - Lifetime
+  - Alpha (optional, for fadeout effects)
+
+- [ ] Implement particle management:
+  - Particle pool/array for efficient reuse
+  - Functions to spawn particles with various initial parameters
+  - Batch rendering for performance
+
+- [ ] Create particle effects:
+  - Explosion effect (radial particles)
+  - Dust/impact effects for collisions
+  - Smoke/fire/water particle types
+  - Particle emitters that continuously spawn particles
+
+- [ ] Physics integration:
+  - Make particles respect gravity
+  - Optional collision with scene geometry
+  - Wind or force field effects
+
+- [ ] Performance optimizations:
+  - View frustum culling for particles
+  - Level-of-detail based on distance
+  - Instanced rendering for similar particles
+
+### 2. UI Layer
+
+- [ ] Implement a UI layer that sits on top of all other layers
+- [ ] Basic UI widgets (buttons, sliders, text)
+- [ ] Input handling specific to UI elements
+
+### 3. Debug/Development Layer
+
+- [ ] Frame rate counter
+- [ ] Physics visualization (collision boxes, vectors)
+- [ ] Memory usage statistics
+- [ ] Toggle-able via keyboard shortcut
+</file>
+
+</files>
