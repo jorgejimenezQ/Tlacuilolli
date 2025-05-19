@@ -1,6 +1,8 @@
-<p align="center">
-  <img src="./assets/logo/logo_tlacuilolli.png" width="200" alt="Tlacuilolli Logo"/>
-</p>
+![Header](./assets/logo/logo_tlacuilolli_banner.png)
+
+<!-- <p align="center">
+  <img src="./assets/logo/logo_tlacuilolli_banner.png" width="200" alt="Tlacuilolli Logo"/>
+</p> -->
 
 # Tlacuilolli Engine
 
